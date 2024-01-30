@@ -1,0 +1,3 @@
+# @package trainer
+
+_target_: "lightning.pytorch.trainer.Trainer"

@@ -1,0 +1,9 @@
+# @package _global_
+
+defaults:
+  - datamodule: hdf
+  - model: cnext_trans
+  - trainer: fit
+
+# str | None
+ckpt_path: null

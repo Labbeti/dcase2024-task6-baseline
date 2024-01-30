@@ -1,0 +1,3 @@
+# @package datamodule
+
+_target_: "dcase24t6.datamodules.hdf.HDFDatamodule"

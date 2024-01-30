@@ -1,0 +1,12 @@
+# -*- coding: utf-8 -*-
+
+aac-datasets
+aac-metrics
+black
+hydra-core
+ipython
+lightning
+pre-commit
+pyyaml
+torch
+torchoutil

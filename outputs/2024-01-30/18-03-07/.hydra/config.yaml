@@ -1,0 +1,7 @@
+datamodule:
+  _target_: dcase24t6.datamodules.hdf.HDFDatamodule
+model:
+  _target_: dcase24t6.models.cnext_trans.CNextTransModel
+trainer:
+  _target_: lightning.pytorch.trainer.Trainer
+ckpt_path: null
