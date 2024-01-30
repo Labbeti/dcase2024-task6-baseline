@@ -11,6 +11,7 @@ def create_params_groups(
     weight_decay: float,
     skip_list: Iterable[str] | None = (),
 ) -> list[dict[str, Any]]:
+    """Creates parameters groups to avoid apply weight decay to bias weights."""
     if skip_list is None:
         skip_list = {}
     else:

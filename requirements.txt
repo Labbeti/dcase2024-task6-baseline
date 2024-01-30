@@ -4,6 +4,8 @@ aac-datasets
 aac-metrics
 black
 hydra-core
+ipykernel
+
 ipython
 lightning
 pre-commit

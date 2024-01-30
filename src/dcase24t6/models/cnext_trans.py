@@ -8,10 +8,11 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from torch import Tensor
 from torch.nn import functional as F
 from torch.optim import AdamW
-from torchoutil.nn.functional.mask import masked_mean
+from torchoutil import masked_mean, randperm_diff, tensor_to_pad_mask
 
 from dcase24t6.models.aac import AACModel
 from dcase24t6.optim.utils import create_params_groups
+from dcase24t6.transforms.mixup import sample_lambda
 
 Batch = dict
 TrainBatch = dict
@@ -28,6 +29,7 @@ class CNextTransModel(AACModel):
         # Model args
         # Train args
         label_smoothing: float = 0.2,
+        mixup_alpha: float = 0.4,
         # Optimizer args
         custom_weight_decay: bool = True,
         lr: float = 5e-4,
@@ -36,7 +38,7 @@ class CNextTransModel(AACModel):
         weight_decay: float = 2.0,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["tokenizer"])
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         if self.hparams["custom_weight_decay"]:
@@ -55,11 +57,24 @@ class CNextTransModel(AACModel):
         audio_shape = batch["audio_shape"]
         captions = batch["captions"]
 
-        encoded = self.encode(audio, audio_shape)
-        decoded = self.decode(encoded, captions=captions[:, :-1])
+        batch_size, _max_caption_length = captions.shape
+        captions_in = captions[:, :, :-1]
+        captions_out = captions[:, :, 1:]
+        del captions
+
+        indexes = randperm_diff(batch_size, device=self.device)
+        audio, audio_shape, lbd = self.mix_audio(audio, audio_shape, indexes)
+        captions_in_pad_mask = tensor_to_pad_mask(captions_in, pad_value=self.pad_id)
+        captions_in = self.input_emb_layer(captions_in)
+        captions_in = captions_in * lbd + captions_in[indexes] * (1.0 - lbd)
+
+        encoded = self.encode_audio(audio, audio_shape)
+        decoded = self.decode_audio(
+            encoded, captions=captions_in, captions_pad_mask=captions_in_pad_mask
+        )
         logits = decoded["logits"]
 
-        loss = self.train_criterion(logits, captions[:, 1:])
+        loss = self.train_criterion(logits, captions_out)
         self.log("train/loss", loss)
 
         return loss
@@ -75,7 +90,7 @@ class CNextTransModel(AACModel):
         is_valid_caption = (mult_captions != self.pad_id).any(dim=2)
         del mult_captions
 
-        encoded = self.encode(audio, audio_shape)
+        encoded = self.encode_audio(audio, audio_shape)
         losses = torch.empty(
             (
                 batch_size,
@@ -89,7 +104,7 @@ class CNextTransModel(AACModel):
             captions_in_i = mult_captions_in[:, i]
             captions_out_i = mult_captions_out[:, i]
 
-            decoded_i = self.decode(encoded, captions=captions_in_i)
+            decoded_i = self.decode_audio(encoded, captions=captions_in_i)
             logits_i = decoded_i["logits"]
             losses_i = self.val_criterion(logits_i, captions_out_i)
             losses[:, i] = losses_i
@@ -108,7 +123,7 @@ class CNextTransModel(AACModel):
         is_valid_caption = (mult_captions != self.pad_id).any(dim=2)
         del mult_captions
 
-        encoded = self.encode(audio, audio_shape)
+        encoded = self.encode_audio(audio, audio_shape)
         losses = torch.empty(
             (
                 batch_size,
@@ -122,7 +137,7 @@ class CNextTransModel(AACModel):
             captions_in_i = mult_captions_in[:, i]
             captions_out_i = mult_captions_out[:, i]
 
-            decoded_i = self.decode(encoded, captions=captions_in_i)
+            decoded_i = self.decode_audio(encoded, captions=captions_in_i)
             logits_i = decoded_i["logits"]
             losses_i = self.test_criterion(logits_i, captions_out_i)
             losses[:, i] = losses_i
@@ -143,8 +158,8 @@ class CNextTransModel(AACModel):
         audio = batch["audio"]
         audio_shape = batch["audio_shape"]
         captions = batch.get("captions", None)
-        encoded = self.encode(audio, audio_shape)
-        decoded = self.decode(encoded, captions, **method_kwargs)
+        encoded = self.encode_audio(audio, audio_shape)
+        decoded = self.decode_audio(encoded, captions, **method_kwargs)
         return decoded
 
     def train_criterion(self, logits: Tensor, target: Tensor) -> Tensor:
@@ -174,13 +189,29 @@ class CNextTransModel(AACModel):
         losses = masked_mean(losses, target != self.pad_id, dim=1)
         return losses
 
-    def encode(self, audio: Tensor, audio_shape: Tensor) -> Encoded:
+    def input_emb_layer(self, ids: Tensor) -> Tensor:
         raise NotImplementedError
 
-    def decode(
+    def mix_audio(
+        self, audio: Tensor, audio_shape: Tensor, indexes: Tensor
+    ) -> tuple[Tensor, Tensor, Tensor]:
+        lbd = sample_lambda(
+            self.hparams["mixup_alpha"],
+            asymmetric=True,
+            size=(),
+        )
+        mixed_audio = audio * lbd + audio[indexes] * (1.0 - lbd)
+        mixed_audio_shape = torch.max(audio_shape, audio_shape[indexes])
+        return mixed_audio, mixed_audio_shape, lbd
+
+    def encode_audio(self, audio: Tensor, audio_shape: Tensor) -> Encoded:
+        raise NotImplementedError
+
+    def decode_audio(
         self,
         encoded: Encoded,
-        captions: Optional[Tensor],
+        captions: Optional[Tensor] = None,
+        captions_pad_mask: Optional[Tensor] = None,
         method: str = "auto",
         **method_kwargs,
     ) -> Decoded:
