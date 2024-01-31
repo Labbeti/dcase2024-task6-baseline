@@ -3,6 +3,7 @@
 defaults:
   - datamodule: hdf
   - model: cnext_trans
+  - tokenizer: word
   - trainer: fit
 
 # str | None

@@ -17,8 +17,9 @@ from dcase24t6.callbacks.evaluator import Evaluator
 def fit(cfg: DictConfig) -> None:
     callbacks = get_callbacks()
 
-    datamodule = instantiate(cfg.datamodule)
-    model = instantiate(cfg.model)
+    tokenizer = instantiate(cfg.tokenizer)
+    datamodule = instantiate(cfg.datamodule, tokenizer=tokenizer)
+    model = instantiate(cfg.model, tokenizer=tokenizer)
     trainer: Trainer = instantiate(cfg.trainer, callbacks=list(callbacks.values()))
 
     trainer.validate(model, datamodule=datamodule, ckpt_path=cfg.ckpt_path)

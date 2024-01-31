@@ -12,6 +12,7 @@ from torchoutil import masked_mean, randperm_diff, tensor_to_pad_mask
 
 from dcase24t6.models.aac import AACModel
 from dcase24t6.optim.utils import create_params_groups
+from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
 from dcase24t6.transforms.mixup import sample_lambda
 
 Batch = dict
@@ -26,6 +27,7 @@ Decoded = dict
 class CNextTransModel(AACModel):
     def __init__(
         self,
+        tokenizer: AACTokenizer,
         # Model args
         # Train args
         label_smoothing: float = 0.2,
@@ -37,7 +39,7 @@ class CNextTransModel(AACModel):
         eps: float = 1e-8,
         weight_decay: float = 2.0,
     ) -> None:
-        super().__init__()
+        super().__init__(tokenizer)
         self.save_hyperparameters(ignore=["tokenizer"])
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
