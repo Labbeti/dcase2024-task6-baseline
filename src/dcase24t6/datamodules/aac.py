@@ -13,40 +13,6 @@ class AACDatamodule(LightningDataModule):
     def __init__(self) -> None:
         super().__init__()
 
-    def setup(self, stage: Stage = None) -> None:
-        match stage:
-            case "fit":
-                self.setup_train()
-                self.setup_val()
-            case "validate":
-                self.setup_val()
-            case "test":
-                self.setup_test()
-            case "predict":
-                self.setup_predict()
-            case None:
-                self.setup_train()
-                self.setup_val()
-                self.setup_test()
-                self.setup_predict()
-
-    def teardown(self, stage: Stage = None) -> None:
-        match stage:
-            case "fit":
-                self.teardown_train()
-                self.teardown_val()
-            case "validate":
-                self.teardown_val()
-            case "test":
-                self.teardown_test()
-            case "predict":
-                self.teardown_predict()
-            case None:
-                self.teardown_train()
-                self.teardown_val()
-                self.teardown_test()
-                self.teardown_predict()
-
     @abstractmethod
     def setup_train(self) -> None:
         pass
