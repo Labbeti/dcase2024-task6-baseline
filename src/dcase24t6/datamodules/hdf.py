@@ -62,13 +62,14 @@ class HDFDatamodule(AACDatamodule):
         hdf_root = self.dataroot.joinpath("HDF")
         os.makedirs(hdf_root, exist_ok=True)
 
+        hdf_datasets = {}
         for subset, dataset in datasets.items():
             hdf_fname = self.hdf_name_pattern.format(subset=subset)
             hdf_fpath = hdf_root.joinpath(hdf_fname)
             if hdf_fpath.exists():
                 continue
 
-            pack_to_hdf(
+            hdf_dataset = pack_to_hdf(
                 dataset,
                 hdf_fpath,
                 self.pre_save_transform,
@@ -76,6 +77,7 @@ class HDFDatamodule(AACDatamodule):
                 num_workers=self.hparams["num_workers"],
                 verbose=self.hparams["verbose"],
             )
+            hdf_datasets[subset] = hdf_dataset
 
     def setup(self, stage: Stage = None) -> None:
         match stage:
@@ -112,7 +114,7 @@ class HDFDatamodule(AACDatamodule):
                 self.teardown_predict()
 
     def setup_train(self) -> None:
-        subsets = ["val"]
+        subsets = ["dev"]
 
         datasets = {}
         for subset in subsets:
@@ -123,6 +125,14 @@ class HDFDatamodule(AACDatamodule):
 
         dataset = ConcatDataset(datasets.values())
         self.train_dataset = dataset
+
+        flat_references = [
+            ref
+            for dataset in datasets
+            for refs in dataset[:, "captions"]
+            for ref in refs
+        ]
+        self.tokenizer.train_from_iterator(flat_references)
 
     def setup_val(self) -> None:
         subsets = ["val"]
