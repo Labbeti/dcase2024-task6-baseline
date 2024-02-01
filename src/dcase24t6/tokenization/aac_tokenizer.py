@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import json
+from pathlib import Path
 from typing import Any, Sequence, TypeGuard
 
 from tokenizers import Encoding, Tokenizer
@@ -20,34 +22,30 @@ class AACTokenizer:
 
     def __init__(
         self,
-        normalizer: Normalizer | None = None,
-        pre_tokenizer: PreTokenizer | None = None,
-        post_processor: PostProcessor | None = None,
+        tokenizer: Tokenizer | None,
         pad_token: str = "<pad>",
         bos_token: str = "<bos>",
         eos_token: str = "<eos>",
         unk_token: str = "<unk>",
     ) -> None:
-        special_tokens = (pad_token, bos_token, eos_token, unk_token)
-        initial_vocab = dict(zip(special_tokens, range(len(special_tokens))))
-        model = WordLevel(initial_vocab, unk_token)
+        if tokenizer is None:
+            special_tokens = (pad_token, bos_token, eos_token, unk_token)
+            initial_vocab = dict(zip(special_tokens, range(len(special_tokens))))
+            model = WordLevel(initial_vocab, unk_token)
 
-        if normalizer is None:
             normalizer = AACTokenizer.default_normalizer()
-        if pre_tokenizer is None:
             pre_tokenizer = AACTokenizer.default_pre_tokenizer()
-        if post_processor is None:
             post_processor = AACTokenizer.default_post_processor(
                 bos_token, initial_vocab[bos_token], eos_token, initial_vocab[eos_token]
             )
 
-        tokenizer = Tokenizer(model)
-        tokenizer.normalizer = normalizer  # type: ignore
-        tokenizer.pre_tokenizer = pre_tokenizer  # type: ignore
-        tokenizer.post_processor = post_processor  # type: ignore
-        tokenizer.enable_padding(
-            direction="right", pad_id=initial_vocab[pad_token], pad_token=pad_token
-        )
+            tokenizer = Tokenizer(model)
+            tokenizer.normalizer = normalizer  # type: ignore
+            tokenizer.pre_tokenizer = pre_tokenizer  # type: ignore
+            tokenizer.post_processor = post_processor  # type: ignore
+            tokenizer.enable_padding(
+                direction="right", pad_id=initial_vocab[pad_token], pad_token=pad_token
+            )
 
         super().__init__()
         self._pad_token = pad_token
@@ -179,14 +177,46 @@ class AACTokenizer:
         )
         return decoded
 
-    def save(self, path: str) -> None:
-        self.tokenizer.save(path)
-
     def get_vocab(self) -> dict[str, int]:
         return self.tokenizer.get_vocab()
 
     def get_vocab_size(self) -> int:
         return self.tokenizer.get_vocab_size()
+
+    def to_str(self, pretty: bool = False) -> str:
+        tokenizer_data = json.loads(self.tokenizer.to_str())
+        tokenizer_data |= {
+            "pad_token": self.pad_token,
+            "bos_token": self.bos_token,
+            "eos_token": self.eos_token,
+            "unk_token": self.unk_token,
+        }
+        indent = 2 if pretty else None
+        content = json.dumps(tokenizer_data, indent=indent)
+        return content
+
+    @classmethod
+    def from_str(cls, content: str) -> "AACTokenizer":
+        parsed = json.loads(content)
+        special_tokens = {
+            name: parsed.pop(name)
+            for name in ("pad_token", "bos_token", "eos_token", "unk_token")
+        }
+        tokenizer = Tokenizer.from_str(json.dumps(parsed))
+        aac_tokenizer = AACTokenizer(tokenizer, **special_tokens)
+        return aac_tokenizer
+
+    def save(self, path: str | Path, pretty: bool = True) -> None:
+        path = Path(path)
+        content = self.to_str(pretty=pretty)
+        path.write_text(content)
+
+    @classmethod
+    def from_file(cls, path: str | Path) -> "AACTokenizer":
+        path = Path(path)
+        content = path.read_text()
+        aac_tokenizer = cls.from_str(content)
+        return aac_tokenizer
 
 
 def is_list_encoding(sequence: Any) -> TypeGuard[Sequence[Encoding]]:
