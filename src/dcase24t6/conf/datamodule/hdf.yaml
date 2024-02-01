@@ -1,3 +1,8 @@
 # @package datamodule
 
 _target_: "dcase24t6.datamodules.hdf.HDFDatamodule"
+
+batch_size: 32
+num_workers: "auto"
+pin_memory: true
+train_drop_last: false
