@@ -10,5 +10,6 @@ ipython
 lightning
 pre-commit
 pyyaml
+tokenizers
 torch
 torchoutil
