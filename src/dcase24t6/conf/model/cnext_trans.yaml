@@ -1,3 +1,0 @@
-# @package model
-
-_target_: "dcase24t6.models.cnext_trans.CNextTransModel"

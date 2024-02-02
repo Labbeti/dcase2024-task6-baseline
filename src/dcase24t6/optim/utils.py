@@ -4,10 +4,11 @@
 from typing import Any, Iterable
 
 from torch import nn
+from torch.nn.parameter import Parameter
 
 
 def create_params_groups(
-    model: nn.Module,
+    params: nn.Module | Iterable[tuple[str, Parameter]],
     weight_decay: float,
     skip_list: Iterable[str] | None = (),
 ) -> list[dict[str, Any]]:
@@ -20,7 +21,10 @@ def create_params_groups(
     decay = []
     no_decay = []
 
-    for name, param in model.named_parameters():
+    if isinstance(params, nn.Module):
+        params = params.named_parameters()
+
+    for name, param in params:
         if not param.requires_grad:
             continue
 

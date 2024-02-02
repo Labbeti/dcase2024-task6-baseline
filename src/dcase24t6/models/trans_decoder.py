@@ -24,7 +24,7 @@ Encoded = dict
 Decoded = dict
 
 
-class CNextTransModel(AACModel):
+class TransDecoderModel(AACModel):
     def __init__(
         self,
         tokenizer: AACTokenizer,
