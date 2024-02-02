@@ -81,7 +81,9 @@ class Evaluator(Callback):
                 self.test_outputs[k] += v
 
     def evaluate(
-        self, candidates: list[str], mult_references: list[list[str]]
+        self,
+        candidates: list[str],
+        mult_references: list[list[str]],
     ) -> tuple[dict[str, float], dict[str, list[float]]]:
         corpus_scores, sentences_scores = self.metrics(candidates, mult_references)
         corpus_scores = {k: v.item() for k, v in corpus_scores.items()}
