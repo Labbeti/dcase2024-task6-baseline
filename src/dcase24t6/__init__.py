@@ -15,8 +15,8 @@ import sys
 from hydra import compose, initialize
 from hydra.core.config_store import ConfigStore
 
-from dcase24t6.fit import fit
 from dcase24t6.info import print_info
+from dcase24t6.train import train
 
 
 def print_usage() -> None:
@@ -26,27 +26,26 @@ def print_usage() -> None:
         dcase24t6 [SUBCOMMAND] [OPTIONS]
 
     Subcommands:
-        fit \t Train a specified model.
+        train \t Train a specified model.
         test \t Test a pretrained model.
         info \t Show installation information.
     """
     )
 
 
-def main() -> None:
+def main() -> None | float:
     if len(sys.argv) <= 1:
         return print_usage()
 
     target = sys.argv[1]
-    hydra_args = sys.argv[2:]
 
-    with initialize(version_base=None, config_path="conf"):
-        cfg = compose(config_name="train", overrides=hydra_args)
-
-        match target:
-            case "fit":
-                return fit(cfg)
-            case "info":
-                return print_info()
-            case _:
-                return print_usage()
+    match target:
+        case "train":
+            with initialize(version_base=None, config_path="conf"):
+                hydra_args = sys.argv[2:]
+                cfg = compose(config_name="train", overrides=hydra_args)
+                return train(cfg)
+        case "info":
+            return print_info()
+        case _:
+            return print_usage()

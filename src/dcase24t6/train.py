@@ -14,7 +14,7 @@ from dcase24t6.callbacks.evaluator import Evaluator
     config_path="conf",
     config_name="train",
 )
-def fit(cfg: DictConfig) -> None:
+def train(cfg: DictConfig) -> None | float:
     callbacks = get_callbacks()
 
     tokenizer = instantiate(cfg.tokenizer)
@@ -36,4 +36,4 @@ def get_callbacks() -> dict[str, Callback]:
 
 
 if __name__ == "__main__":
-    fit()
+    train()
