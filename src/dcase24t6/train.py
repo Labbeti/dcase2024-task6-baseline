@@ -15,7 +15,7 @@ from dcase24t6.callbacks.evaluator import Evaluator
     config_name="train",
 )
 def train(cfg: DictConfig) -> None | float:
-    callbacks = get_callbacks()
+    callbacks = get_callbacks(cfg)
 
     tokenizer = instantiate(cfg.tokenizer)
     datamodule = instantiate(cfg.datamodule, tokenizer=tokenizer)
@@ -27,11 +27,15 @@ def train(cfg: DictConfig) -> None | float:
     trainer.test(model, datamodule=datamodule)
 
 
-def get_callbacks() -> dict[str, Callback]:
-    evaluator = Evaluator()
+def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
+    checkpoint = instantiate(cfg.ckpt)
+
+    evaluator = Evaluator(cfg.logdir)
     callbacks: dict[str, Callback] = {
         "evaluator": evaluator,
+        "checkpoint": checkpoint,
     }
+
     return callbacks
 
 

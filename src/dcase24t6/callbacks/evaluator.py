@@ -1,42 +1,39 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import Any, Mapping
+from pathlib import Path
+from typing import Any, Literal
 
 from aac_metrics.classes.evaluate import Evaluate
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks.callback import Callback
 from torchoutil.nn.functional import move_to_rec
 
+from dcase24t6.utils.collections import dict_list_to_list_dict
+
 
 class Evaluator(Callback):
-    def __init__(self) -> None:
+    def __init__(self, logdir: str | Path) -> None:
+        logdir = Path(logdir)
         super().__init__()
         self.metrics = Evaluate(metrics="all")
 
-        self.val_outputs = {}
-        self.test_outputs = {}
-        self.scores = {}
+        self.all_results = []
+        self.corpus_scores = {}
 
     def on_validation_epoch_start(
-        self, trainer: Trainer, pl_module: LightningModule
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
     ) -> None:
-        self.val_outputs = {}
+        return self._on_epoch_start("val")
 
-    def on_validation_epoch_end(
-        self, trainer: Trainer, pl_module: LightningModule
+    def on_test_epoch_start(
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
     ) -> None:
-        val_candidates = self.val_outputs["candidates"]
-        val_mult_references = self.val_outputs["mult_references"]
-        self.evaluate(val_candidates, val_mult_references)
-
-    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        self.test_outputs = {}
-
-    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        test_candidates = self.test_outputs["candidates"]
-        test_mult_references = self.test_outputs["mult_references"]
-        self.evaluate(test_candidates, test_mult_references)
+        return self._on_epoch_start("test")
 
     def on_validation_batch_end(
         self,
@@ -47,17 +44,7 @@ class Evaluator(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        if not isinstance(outputs, Mapping):
-            return None
-
-        outputs = move_to_rec(outputs, device="cpu")
-        outputs = {k: list(v) for k, v in outputs.items()}
-
-        if len(self.val_outputs) == 0:
-            self.val_outputs = outputs
-        else:
-            for k, v in outputs.items():
-                self.val_outputs[k] += v
+        return self._on_batch_end("val", outputs, batch, batch_idx, dataloader_idx)
 
     def on_test_batch_end(
         self,
@@ -68,24 +55,79 @@ class Evaluator(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        if not isinstance(outputs, Mapping):
+        return self._on_batch_end("test", outputs, batch, batch_idx, dataloader_idx)
+
+    def on_validation_epoch_end(
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
+    ) -> None:
+        self._on_epoch_end("val")
+
+    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        self._on_epoch_end("test")
+
+    def _on_epoch_start(self, stage: Literal["val", "test"]) -> None:
+        self.all_results = [
+            result for result in self.all_results if result["stage"] != "val"
+        ]
+
+    def _on_batch_end(
+        self,
+        stage: Literal["val", "test"],
+        outputs: dict[str, Any],
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        if not isinstance(outputs, dict) or not isinstance(batch, dict):
             return None
 
-        outputs = move_to_rec(outputs, device="cpu")
-        outputs = {k: list(v) for k, v in outputs.items()}
+        batch_size = len(next(iter(outputs.values())))
 
-        if len(self.val_outputs) == 0:
-            self.test_outputs = outputs
-        else:
-            for k, v in outputs.items():
-                self.test_outputs[k] += v
+        result_dict = outputs | batch
+        result_dict = move_to_rec(result_dict, device="cpu")
+        result_dict |= {
+            "dataloader_idx": [dataloader_idx] * batch_size,
+            "batch_idx": [batch_idx] * batch_size,
+            "stage": [stage] * batch_size,
+        }
+        result = dict_list_to_list_dict(result_dict)
+        self.all_results += result
+
+    def _on_epoch_end(self, stage: str) -> None:
+        stage_results = [
+            result for result in self.all_results if result["stage"] == stage
+        ]
+        full_names = [
+            "{dataset}_{subset}_{dataloader_idx}".format(**result)
+            for result in stage_results
+        ]
+        uniq_full_names = dict.fromkeys(full_names)
+
+        for uniq_name in uniq_full_names:
+            dataset_results = [
+                result
+                for name, result in zip(full_names, stage_results)
+                if uniq_name == name
+            ]
+            candidates = [result["candidate"] for result in dataset_results]
+            mult_references = [result["mult_references"] for result in dataset_results]
+            corpus_scores, sentences_scores = self.evaluate(
+                uniq_name, candidates, mult_references
+            )
 
     def evaluate(
         self,
+        dataset_name: str,
         candidates: list[str],
         mult_references: list[list[str]],
     ) -> tuple[dict[str, float], dict[str, list[float]]]:
         corpus_scores, sentences_scores = self.metrics(candidates, mult_references)
-        corpus_scores = {k: v.item() for k, v in corpus_scores.items()}
-        sentences_scores = {k: v.tolist() for k, v in sentences_scores.items()}
+        corpus_scores = {
+            f"{dataset_name}.{k}": v.item() for k, v in corpus_scores.items()
+        }
+        sentences_scores = {
+            f"{dataset_name}.{k}": v.tolist() for k, v in sentences_scores.items()
+        }
         return corpus_scores, sentences_scores

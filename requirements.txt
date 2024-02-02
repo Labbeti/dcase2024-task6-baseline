@@ -3,6 +3,7 @@
 aac-datasets
 aac-metrics
 black
+colorlog
 hydra-core
 ipykernel
 

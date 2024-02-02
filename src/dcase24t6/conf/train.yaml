@@ -8,3 +8,5 @@ defaults:
 
 # str | None
 ckpt_path: null
+# int (0 = WARNING, 1 = INFO, 2 = DEBUG)
+verbose: 1
