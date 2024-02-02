@@ -3,7 +3,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Sequence, TypeGuard
+from typing import Any, ClassVar, Sequence, TypeGuard
 
 from tokenizers import Encoding, Tokenizer
 from tokenizers.models import WordLevel
@@ -20,6 +20,8 @@ from tokenizers.trainers import Trainer, WordLevelTrainer
 class AACTokenizer:
     """Wrapper of tokenizers.Tokenizer to facilitate AAC development."""
 
+    VERSION: ClassVar[int] = 1
+
     def __init__(
         self,
         tokenizer: Tokenizer | None,
@@ -27,6 +29,7 @@ class AACTokenizer:
         bos_token: str = "<bos>",
         eos_token: str = "<eos>",
         unk_token: str = "<unk>",
+        version: int | None = None,
     ) -> None:
         if tokenizer is None:
             special_tokens = (pad_token, bos_token, eos_token, unk_token)
@@ -47,12 +50,16 @@ class AACTokenizer:
                 direction="right", pad_id=initial_vocab[pad_token], pad_token=pad_token
             )
 
+        if version is None:
+            version = AACTokenizer.VERSION
+
         super().__init__()
+        self._tokenizer = tokenizer
         self._pad_token = pad_token
         self._bos_token = bos_token
         self._eos_token = eos_token
         self._unk_token = unk_token
-        self._tokenizer = tokenizer
+        self._version = version
 
     @classmethod
     def default_normalizer(cls) -> Normalizer:
@@ -77,7 +84,11 @@ class AACTokenizer:
 
     @classmethod
     def default_post_processor(
-        cls, bos_token: str, bos_token_id: int, eos_token: str, eos_token_id: int
+        cls,
+        bos_token: str,
+        bos_token_id: int,
+        eos_token: str,
+        eos_token_id: int,
     ) -> PostProcessor:
         return TemplateProcessing(
             single=f"{bos_token} $0 {eos_token}",
@@ -146,7 +157,9 @@ class AACTokenizer:
         return encoding
 
     def encode_batch(
-        self, sequence: list[str], disable_unk_token: bool = False
+        self,
+        sequence: list[str],
+        disable_unk_token: bool = False,
     ) -> list[Encoding]:
         if disable_unk_token:
             self.tokenizer.model.unk_token = ""
@@ -156,7 +169,9 @@ class AACTokenizer:
         return encodings
 
     def decode(
-        self, sequence: Sequence[int] | Encoding, skip_special_tokens: bool = True
+        self,
+        sequence: Sequence[int] | Encoding,
+        skip_special_tokens: bool = True,
     ) -> str:
         if isinstance(sequence, Encoding):
             sequence = sequence.ids
@@ -184,13 +199,15 @@ class AACTokenizer:
         return self.tokenizer.get_vocab_size()
 
     def to_str(self, pretty: bool = False) -> str:
-        tokenizer_data = json.loads(self.tokenizer.to_str())
-        tokenizer_data |= {
-            "pad_token": self.pad_token,
-            "bos_token": self.bos_token,
-            "eos_token": self.eos_token,
-            "unk_token": self.unk_token,
+        added_data = {
+            "pad_token": self._pad_token,
+            "bos_token": self._bos_token,
+            "eos_token": self._eos_token,
+            "unk_token": self._unk_token,
+            "version": self._version,
         }
+        tokenizer_data = json.loads(self.tokenizer.to_str())
+        tokenizer_data |= added_data
         indent = 2 if pretty else None
         content = json.dumps(tokenizer_data, indent=indent)
         return content
@@ -198,12 +215,12 @@ class AACTokenizer:
     @classmethod
     def from_str(cls, content: str) -> "AACTokenizer":
         parsed = json.loads(content)
-        special_tokens = {
+        added_data = {
             name: parsed.pop(name)
-            for name in ("pad_token", "bos_token", "eos_token", "unk_token")
+            for name in ("pad_token", "bos_token", "eos_token", "unk_token", "version")
         }
         tokenizer = Tokenizer.from_str(json.dumps(parsed))
-        aac_tokenizer = AACTokenizer(tokenizer, **special_tokens)
+        aac_tokenizer = AACTokenizer(tokenizer, **added_data)
         return aac_tokenizer
 
     def save(self, path: str | Path, pretty: bool = True) -> None:
