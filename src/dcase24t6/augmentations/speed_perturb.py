@@ -8,7 +8,7 @@ from typing import Literal
 from torch import Tensor, nn
 from torchoutil.nn import CropDim, PadDim
 
-from dcase24t6.transforms.resample_nearest import ResampleNearest
+from dcase24t6.augmentations.resample_nearest import ResampleNearest
 
 
 class SpeedPerturbation(nn.Module):

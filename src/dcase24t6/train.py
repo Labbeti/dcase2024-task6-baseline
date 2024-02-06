@@ -29,13 +29,12 @@ def train(cfg: DictConfig) -> None | float:
 
 def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     checkpoint = instantiate(cfg.ckpt)
-
     evaluator = Evaluator(cfg.logdir)
-    callbacks: dict[str, Callback] = {
-        "evaluator": evaluator,
-        "checkpoint": checkpoint,
-    }
 
+    callbacks: dict[str, Callback] = {
+        "checkpoint": checkpoint,
+        "evaluator": evaluator,
+    }
     return callbacks
 
 

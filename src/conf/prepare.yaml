@@ -1,0 +1,15 @@
+# @package _global_
+
+defaults:
+- pre_transform: cnext
+
+dataroot: ???
+subsets: ["dev", "val", "eval", "dcase_aac_test", "dcase_aac_analysis"]
+force: true
+verbose: 1
+
+hdf_pattern: "{dataset}_{subset}{suffix}.hdf"
+
+overwrite: false
+batch_size: 32
+num_workers: "auto"

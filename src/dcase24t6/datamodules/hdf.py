@@ -1,27 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
 from pathlib import Path
-from typing import Callable, Literal
+from typing import Iterable, Literal
 
-from aac_datasets import Clotho
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import ConcatDataset
+from torchoutil.utils.data.collate import AdvancedCollateDict
 from torchoutil.utils.data.dataset import EmptyDataset
-from torchoutil.utils.data.hdf import HDFDataset, pack_to_hdf
+from torchoutil.utils.hdf import HDFDataset
 
-from dcase24t6.datamodules.aac import AACDatamodule, Stage
+from dcase24t6.datamodules.aac import AACDatamodule
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
+
+Stage = Literal["fit", "validate", "test", "predict"] | None
+ALL_STAGES = ("fit", "validate", "test", "predict")
 
 
 class HDFDatamodule(AACDatamodule):
     def __init__(
         self,
         tokenizer: AACTokenizer,
-        pre_save_transform: Callable | None,
         dataroot: str | Path,
-        hdf_name_pattern: str,
+        train_hdfs: str | Iterable[str] = (),
+        val_hdfs: str | Iterable[str] = (),
+        test_hdfs: str | Iterable[str] = (),
+        predict_hdfs: str | Iterable[str] = (),
         # DataLoader args
         batch_size: int = 32,
         num_workers: int | Literal["auto"] = "auto",
@@ -31,13 +35,22 @@ class HDFDatamodule(AACDatamodule):
         verbose: int = 0,
     ) -> None:
         dataroot = Path(dataroot)
+        if isinstance(train_hdfs, str):
+            train_hdfs = (train_hdfs,)
+        if isinstance(val_hdfs, str):
+            val_hdfs = (val_hdfs,)
+        if isinstance(test_hdfs, str):
+            test_hdfs = (test_hdfs,)
+        if isinstance(predict_hdfs, str):
+            predict_hdfs = (predict_hdfs,)
 
         super().__init__()
         self.tokenizer = tokenizer
-        self.pre_save_transform = pre_save_transform
-
         self.dataroot = dataroot
-        self.hdf_name_pattern = hdf_name_pattern
+        self.train_hdfs = train_hdfs
+        self.val_hdfs = val_hdfs
+        self.test_hdfs = test_hdfs
+        self.predict_hdfs = predict_hdfs
 
         self.train_dataset = EmptyDataset()
         self.val_datasets = {}
@@ -46,38 +59,6 @@ class HDFDatamodule(AACDatamodule):
         self.collate_fn = None
 
         self.save_hyperparameters(ignore=["tokenizer", "pre_save_transform"])
-
-    def prepare_data(self) -> None:
-        subsets = ("dev", "val", "eval", "dcase_aac_test", "dcase_aac_analysis")
-        datasets = {
-            subset: Clotho(
-                root=self.dataroot,
-                subset=subset,
-                download=True,
-                verbose=self.hparams["verbose"],
-            )
-            for subset in subsets
-        }
-
-        hdf_root = self.dataroot.joinpath("HDF")
-        os.makedirs(hdf_root, exist_ok=True)
-
-        hdf_datasets = {}
-        for subset, dataset in datasets.items():
-            hdf_fname = self.hdf_name_pattern.format(subset=subset)
-            hdf_fpath = hdf_root.joinpath(hdf_fname)
-            if hdf_fpath.exists():
-                continue
-
-            hdf_dataset = pack_to_hdf(
-                dataset,
-                hdf_fpath,
-                self.pre_save_transform,
-                batch_size=self.hparams["batch_size"],
-                num_workers=self.hparams["num_workers"],
-                verbose=self.hparams["verbose"],
-            )
-            hdf_datasets[subset] = hdf_dataset
 
     def setup(self, stage: Stage = None) -> None:
         match stage:
@@ -114,14 +95,13 @@ class HDFDatamodule(AACDatamodule):
                 self.teardown_predict()
 
     def setup_train(self) -> None:
-        subsets = ["dev"]
+        hdf_fnames = self.train_hdfs
 
         datasets = {}
-        for subset in subsets:
-            hdf_fname = self.hdf_name_pattern.format(subset=subset)
+        for hdf_fname in hdf_fnames:
             hdf_fpath = self.dataroot.joinpath("HDF", hdf_fname)
-            dataset = HDFDataset(hdf_fpath)
-            datasets[subset] = dataset
+            dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
+            datasets[hdf_fname] = dataset
 
         dataset = ConcatDataset(datasets.values())
         self.train_dataset = dataset
@@ -134,39 +114,43 @@ class HDFDatamodule(AACDatamodule):
         ]
         self.tokenizer.train_from_iterator(flat_references)
 
+        pad_values = {
+            "audio": 0.0,
+            "captions": self.tokenizer.pad_token_id,
+            "mult_captions": self.tokenizer.pad_token_id,
+        }
+        self.collate_fn = AdvancedCollateDict(pad_values)
+
     def setup_val(self) -> None:
-        subsets = ["val"]
+        hdf_fnames = self.val_hdfs
 
         datasets = {}
-        for subset in subsets:
-            hdf_fname = self.hdf_name_pattern.format(subset=subset)
+        for hdf_fname in hdf_fnames:
             hdf_fpath = self.dataroot.joinpath("HDF", hdf_fname)
-            dataset = HDFDataset(hdf_fpath)
-            datasets[subset] = dataset
+            dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
+            datasets[hdf_fname] = dataset
 
         self.val_datasets = datasets
 
     def setup_test(self) -> None:
-        subsets = ["val", "eval"]
+        hdf_fnames = self.test_hdfs
 
         datasets = {}
-        for subset in subsets:
-            hdf_fname = self.hdf_name_pattern.format(subset=subset)
+        for hdf_fname in hdf_fnames:
             hdf_fpath = self.dataroot.joinpath("HDF", hdf_fname)
-            dataset = HDFDataset(hdf_fpath)
-            datasets[subset] = dataset
+            dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
+            datasets[hdf_fname] = dataset
 
         self.test_datasets = datasets
 
     def setup_predict(self) -> None:
-        subsets = ["dcase_aac_test", "dcase_aac_analysis"]
+        hdf_fnames = self.predict_hdfs
 
         datasets = {}
-        for subset in subsets:
-            hdf_fname = self.hdf_name_pattern.format(subset=subset)
+        for hdf_fname in hdf_fnames:
             hdf_fpath = self.dataroot.joinpath("HDF", hdf_fname)
-            dataset = HDFDataset(hdf_fpath)
-            datasets[subset] = dataset
+            dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
+            datasets[hdf_fname] = dataset
 
         self.predict_datasets = datasets
 

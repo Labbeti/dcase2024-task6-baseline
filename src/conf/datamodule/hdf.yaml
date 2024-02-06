@@ -2,6 +2,7 @@
 
 _target_: "dcase24t6.datamodules.hdf.HDFDatamodule"
 
+dataroot: ???
 batch_size: 32
 num_workers: "auto"
 pin_memory: true

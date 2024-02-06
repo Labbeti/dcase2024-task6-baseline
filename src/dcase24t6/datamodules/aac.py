@@ -2,11 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from abc import abstractmethod
-from typing import Literal
 
 from lightning import LightningDataModule
-
-Stage = Literal["fit", "validate", "test"] | None
 
 
 class AACDatamodule(LightningDataModule):

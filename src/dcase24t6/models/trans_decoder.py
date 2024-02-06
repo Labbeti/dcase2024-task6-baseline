@@ -10,10 +10,10 @@ from torch.nn import functional as F
 from torch.optim import AdamW
 from torchoutil import masked_mean, randperm_diff, tensor_to_pad_mask
 
+from dcase24t6.augmentations.mixup import sample_lambda
 from dcase24t6.models.aac import AACModel
 from dcase24t6.optim.utils import create_params_groups
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
-from dcase24t6.transforms.mixup import sample_lambda
 
 Batch = dict
 TrainBatch = dict

@@ -9,10 +9,10 @@ from torch.nn.parameter import Parameter
 from torchlibrosa.augmentation import SpecAugmentation
 from torchlibrosa.stft import LogmelFilterBank, Spectrogram
 
+from dcase24t6.augmentations.mixup import do_mixup
+from dcase24t6.augmentations.speed_perturb import SpeedPerturbation
 from dcase24t6.nn.functional import trunc_normal_
 from dcase24t6.nn.modules import DropPath, LayerNorm
-from dcase24t6.transforms.mixup import do_mixup
-from dcase24t6.transforms.speed_perturb import SpeedPerturbation
 
 
 class CNextBlock(nn.Module):
