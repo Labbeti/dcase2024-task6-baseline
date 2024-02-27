@@ -2,8 +2,13 @@
 
 _target_: "dcase24t6.datamodules.hdf.HDFDatamodule"
 
-dataroot: ???
+root: ${path.data}
+train_hdfs: "clotho_dev_cnext.hdf"
+val_hdfs: "clotho_val_cnext.hdf"
+test_hdfs: "clotho_eval_cnext.hdf"
+predict_hdfs: ["clotho_dcase_aac_analysis_cnext.hdf", "clotho_dcase_aac_test_cnext.hdf"]
 batch_size: 32
 num_workers: "auto"
 pin_memory: true
 train_drop_last: false
+verbose: ${verbose}

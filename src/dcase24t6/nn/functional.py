@@ -3,9 +3,13 @@
 
 import math
 import warnings
+from typing import Callable
 
 import torch
 from torch import Tensor
+from torch.nn import functional as F
+
+ACTIVATIONS = ("relu", "gelu")
 
 
 def _trunc_normal_(tensor: Tensor, mean, std, a, b) -> Tensor:
@@ -96,3 +100,12 @@ def drop_path(
     if keep_prob > 0.0 and scale_by_keep:
         random_tensor.div_(keep_prob)
     return x * random_tensor
+
+
+def get_activation_fn(name: str) -> Callable[[Tensor], Tensor]:
+    if name == "relu":
+        return F.relu
+    elif name == "gelu":
+        return F.gelu
+    else:
+        raise ValueError(f"Invalid argument {name=}. (expected one of {ACTIVATIONS})")

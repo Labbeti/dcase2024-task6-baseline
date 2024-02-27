@@ -23,7 +23,7 @@ class CustomFileHandler(FileHandler):
         encoding: str | None = None,
         delay: bool = True,
     ) -> None:
-        filename = Path(filename)
+        filename = Path(filename).resolve()
         parent_dpath = osp.dirname(filename)
         if parent_dpath != "":
             try:
@@ -33,3 +33,14 @@ class CustomFileHandler(FileHandler):
                     f"Cannot create intermediate directories for hydra log files. (with {err=})"
                 )
         super().__init__(filename, mode, encoding, delay)
+
+
+def get_none(*args, **kwargs) -> None:
+    """Returns None.
+
+    Can be used for hydra instantiations with:
+    ```
+    _target_: "dcase24t6.utils.hydra.get_none"
+    ```
+    """
+    return None

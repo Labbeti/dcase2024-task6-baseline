@@ -1,15 +1,23 @@
 # @package _global_
 
 defaults:
-- pre_transform: cnext
+  - pre_transform: cnext
+  - path: local
+  - hydra: custom
+  - _self_
 
-dataroot: ???
+# --- Common args
+datetime: ${now:%Y.%m.%d-%H.%M.%S}  # str
+log_name: "${hydra:job.name}-${datetime}"
+seed: 42  # int | null
+verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
+
+
+# --- Prepare args
 subsets: ["dev", "val", "eval", "dcase_aac_test", "dcase_aac_analysis"]
-force: true
-verbose: 1
+force: false
 
-hdf_pattern: "{dataset}_{subset}{suffix}.hdf"
-
-overwrite: false
-batch_size: 32
-num_workers: "auto"
+hdf_pattern: "{dataset}_{subset}_${hydra:runtime.choices.pre_transform}.hdf"  # str
+overwrite: false  # bool
+batch_size: 32  # int
+num_workers: "auto"  # int | "auto"

@@ -1,7 +1,8 @@
-# @package tokenizer
+# @package pre_transform
 
-_target_: "dcase24t6.pre_transform.cnext.ResampleMeanCNext"
+_target_: "dcase24t6.pre_transforms.cnext.ResampleMeanCNext"
 
 model_name_or_path: "cnext_bl"
 model_sr: 32_000
-device: "auto"
+offline: false
+device: "cuda_if_available"

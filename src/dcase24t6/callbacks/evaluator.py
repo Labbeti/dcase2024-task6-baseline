@@ -14,7 +14,7 @@ from dcase24t6.utils.collections import dict_list_to_list_dict
 
 class Evaluator(Callback):
     def __init__(self, logdir: str | Path) -> None:
-        logdir = Path(logdir)
+        logdir = Path(logdir).resolve()
         super().__init__()
         self.metrics = Evaluate(metrics="all")
 

@@ -1,0 +1,4 @@
+# @package path
+
+data: "data"
+logs: "logs"

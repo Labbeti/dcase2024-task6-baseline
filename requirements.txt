@@ -3,15 +3,16 @@
 aac-datasets
 aac-metrics
 black
-colorlog
+hydra-colorlog
 hydra-core
 ipykernel
 
 ipython
 lightning
+nltk
 pre-commit
 pyyaml
 tokenizers
 torch
 torchlibrosa
-torchoutil
+torchoutil[extras]

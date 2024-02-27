@@ -2,9 +2,11 @@
 max-line-length = 88
 extend-ignore =
     # Line too long
-    E501
+    E501,
     # Module level import not at top of file
-    E402
+    E402,
+    # Whitespace before ':'
+    E203
 show_source = True
 exclude =
     # No need to traverse our git directory

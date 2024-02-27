@@ -26,8 +26,8 @@ Repository = "https://github.com/Labbeti/dcase2024-task6-baseline"
 Changelog = "https://github.com/Labbeti/dcase2024-task6-baseline/blob/main/CHANGELOG.md"
 
 [project.scripts]
-dcase24t6 = "dcase24t6:main"
 dcase24t6-info = "dcase24t6.info:print_info"
+dcase24t6-prepare = "dcase24t6.prepare:prepare"
 dcase24t6-train = "dcase24t6.train:train"
 
 [tool.setuptools.packages.find]

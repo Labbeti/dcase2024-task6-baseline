@@ -1,7 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from dcase24t6 import main
+
+def print_usage() -> None:
+    print(
+        """
+    Usage:
+        dcase24t6-[SUBCOMMAND] [OPTIONS]
+
+    Subcommands:
+        train \t Train a model.
+        prepare \t Install data, metrics and models.
+        info \t Show installation information.
+    """
+    )
+
 
 if __name__ == "__main__":
-    main()
+    print_usage()

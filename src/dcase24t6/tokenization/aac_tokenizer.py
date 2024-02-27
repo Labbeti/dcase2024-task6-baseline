@@ -24,7 +24,7 @@ class AACTokenizer:
 
     def __init__(
         self,
-        tokenizer: Tokenizer | None,
+        tokenizer: Tokenizer | None = None,
         pad_token: str = "<pad>",
         bos_token: str = "<bos>",
         eos_token: str = "<eos>",
@@ -139,6 +139,12 @@ class AACTokenizer:
     def token_to_id(self, token: str) -> int:
         return self._tokenizer.token_to_id(token)
 
+    def get_token_to_id(self) -> dict[str, int]:
+        return self._tokenizer.get_vocab()
+
+    def get_id_to_token(self) -> dict[int, str]:
+        return {id_: token for token, id_ in self.get_token_to_id().items()}
+
     def train_from_iterator(
         self,
         sequence: list[str],
@@ -224,13 +230,13 @@ class AACTokenizer:
         return aac_tokenizer
 
     def save(self, path: str | Path, pretty: bool = True) -> None:
-        path = Path(path)
+        path = Path(path).resolve()
         content = self.to_str(pretty=pretty)
         path.write_text(content)
 
     @classmethod
     def from_file(cls, path: str | Path) -> "AACTokenizer":
-        path = Path(path)
+        path = Path(path).resolve()
         content = path.read_text()
         aac_tokenizer = cls.from_str(content)
         return aac_tokenizer

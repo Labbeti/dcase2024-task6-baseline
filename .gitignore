@@ -159,9 +159,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-debug/
-outputs/
-lightning_logs/
+logs/
+data/
 
-# TODO: rm
-jz*
+jz*.yaml

@@ -12,7 +12,7 @@ from torchlibrosa.stft import LogmelFilterBank, Spectrogram
 from dcase24t6.augmentations.mixup import do_mixup
 from dcase24t6.augmentations.speed_perturb import SpeedPerturbation
 from dcase24t6.nn.functional import trunc_normal_
-from dcase24t6.nn.modules import DropPath, LayerNorm
+from dcase24t6.nn.modules import CustomLayerNorm, DropPath
 
 
 class CNextBlock(nn.Module):
@@ -37,7 +37,7 @@ class CNextBlock(nn.Module):
         self.dwconv = nn.Conv2d(
             dim, dim, kernel_size=7, padding=3, groups=dim
         )  # depthwise conv
-        self.norm = LayerNorm(dim, eps=1e-6)
+        self.norm = CustomLayerNorm(dim, eps=1e-6)
         self.pwconv1 = nn.Linear(
             dim, 4 * dim
         )  # pointwise/1x1 convs, implemented with linear layers
@@ -170,12 +170,12 @@ class ConvNeXt(nn.Module):
 
         stem = nn.Sequential(
             nn.Conv2d(3, dims[0], kernel_size=(4, 4), stride=(4, 4)),
-            LayerNorm(dims[0], eps=1e-6, data_format="channels_first"),
+            CustomLayerNorm(dims[0], eps=1e-6, data_format="channels_first"),
         )
         self.downsample_layers.append(stem)
         for i in range(3):
             downsample_layer = nn.Sequential(
-                LayerNorm(dims[i], eps=1e-6, data_format="channels_first"),
+                CustomLayerNorm(dims[i], eps=1e-6, data_format="channels_first"),
                 nn.Conv2d(dims[i], dims[i + 1], kernel_size=2, stride=2),
             )
             self.downsample_layers.append(downsample_layer)
@@ -276,7 +276,6 @@ class ConvNeXt(nn.Module):
             input_lens = input_shapes[:, input_time_dim]
             reduction_factor = input_.shape[input_time_dim] // frame_embs.shape[-1]
 
-            # TODO : keep ?
             # frame_embs_lens = input_lens.div(reduction_factor, rounding_mode="trunc")
             frame_embs_lens = input_lens.div(reduction_factor).round().int()
 
@@ -285,6 +284,7 @@ class ConvNeXt(nn.Module):
                 "frame_embs": frame_embs,
                 # (bsize,)
                 "frame_embs_lens": frame_embs_lens,
+                "frame_time_dim": 2,
             }
 
         if self.return_clip_outputs:

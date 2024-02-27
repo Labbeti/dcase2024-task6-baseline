@@ -2,11 +2,28 @@
 
 defaults:
   - datamodule: hdf
-  - model: cnext_trans
+  - model: trans_decoder
+  - path: local
   - tokenizer: word
   - trainer: fit
+  - hydra: custom
+  - _self_
 
-# str | None
-ckpt_path: null
-# int (0 = WARNING, 1 = INFO, 2 = DEBUG)
-verbose: 1
+# --- Common args
+datetime: ${now:%Y.%m.%d-%H.%M.%S}  # str
+log_name: "${hydra:job.name}-${datetime}"
+seed: 42  # int | null
+verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
+
+
+# --- Train args
+ckpt_path: null  # str | null
+
+ckpt:
+  _target_: "lightning.pytorch.callbacks.model_checkpoint.ModelCheckpoint"
+
+log:
+  _target_: "lightning.pytorch.loggers.tensorboard.TensorBoardLogger"
+  save_dir: ${path.logs}
+  name: ${datetime}
+  version: "tensorboard"

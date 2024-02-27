@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence, TypeGuard
 
 import torch
 from torch import Tensor, nn
@@ -14,12 +14,14 @@ from dcase24t6.nn.convnext_ckpt_utils import load_cnext_state_dict
 
 
 class ResampleMeanCNext(nn.Module):
+    """Offline transform applied to audio inputs for trans_decoder model."""
+
     def __init__(
         self,
         model_name_or_path: str | Path,
         model_sr: int = 32_000,
         offline: bool = False,
-        device: str | torch.device | None = "auto",
+        device: str | torch.device | None = "cuda_if_available",
     ) -> None:
         device = get_device(device)
 
@@ -55,22 +57,43 @@ class ResampleMeanCNext(nn.Module):
 
     def forward(self, batch: dict[str, Any]) -> dict[str, Any]:
         audio = batch.pop("audio")
-        audio_shape = batch.pop("audio_shape")
-        sample_rates = batch["sr"]
+        sr = batch["sr"]
 
-        if not isinstance(audio, Tensor) or audio.ndim != 3:
-            raise ValueError("Invalid audio input. (expected tensor with 3 dims)")
-        if not all(sr == sample_rates[0] for sr in sample_rates[1:]):
+        if not isinstance(audio, Tensor):
+            raise TypeError("Invalid audio input. (expected tensor)")
+
+        if audio.ndim == 2 and isinstance(sr, int):
+            is_batch = False
+            audio_shape = torch.as_tensor([audio.shape], device=self.device)
+            audio = audio.unsqueeze(dim=0)
+            sr = [sr]
+        elif audio.ndim == 3 and is_list_int(sr):
+            is_batch = True
+            audio_shape = batch.pop("audio_shape")
+        else:
+            raise ValueError("Invalid audio or sr input. (expected tensor with 3 dims)")
+
+        if not all(sr_i == sr[0] for sr_i in sr[1:]):
             raise ValueError(
-                f"Cannot transform a batch with audio sampled at different rates. (found {sample_rates=})"
+                f"Cannot transform a batch with audio sampled at different rates. (found {sr=})"
             )
 
-        audio = resample(audio, sample_rates[0], self.model_sr)
+        audio = resample(audio, sr[0], self.model_sr)
 
         # Remove channel dim
         audio = audio.mean(dim=1)
         audio = audio.to(device=self.device)
 
         model_outs = self.convnext(audio, audio_shape)
-        frame_embs = model_outs["frame_embs"]
-        return batch | {"audio": frame_embs}
+        if not is_batch:
+            model_outs = {
+                k: (v[0] if isinstance(v, Sequence) else v)
+                for k, v in model_outs.items()
+            }
+
+        outputs = batch | model_outs
+        return outputs
+
+
+def is_list_int(x: Any) -> TypeGuard[list[int]]:
+    return isinstance(x, list) and all(isinstance(xi, int) for xi in x)

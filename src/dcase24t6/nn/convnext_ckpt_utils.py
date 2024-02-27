@@ -34,7 +34,7 @@ DEFAULT_CNEXT_NAME = "cnext_bl"
 
 def get_cnext_dir_path() -> Path:
     """Return the path to the directory containing CNEXT checkpoints files."""
-    return Path(torch.hub.get_dir()).joinpath("checkpoints")
+    return Path(torch.hub.get_dir()).joinpath("checkpoints").resolve()
 
 
 def get_cnext_ckpt_path(model_name: str = DEFAULT_CNEXT_NAME) -> Path:
@@ -104,5 +104,6 @@ def download_cnext_checkpoint(
 ) -> None:
     """Download CNEXT checkpoint file."""
     fpath = get_cnext_ckpt_path(model_name)
+    fpath = str(fpath)
     url = CNEXT_PRETRAINED_URLS[model_name]["url"]
     torch.hub.download_url_to_file(url, fpath, progress=verbose >= 1)

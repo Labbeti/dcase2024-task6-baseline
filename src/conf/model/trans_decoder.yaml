@@ -1,3 +1,5 @@
 # @package model
 
 _target_: "dcase24t6.models.trans_decoder.TransDecoderModel"
+
+verbose: ${verbose}

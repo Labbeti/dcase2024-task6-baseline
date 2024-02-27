@@ -1,46 +1,116 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from typing import Any, Optional
+from typing import Any, Optional, TypedDict
 
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.optim import AdamW
-from torchoutil import masked_mean, randperm_diff, tensor_to_pad_mask
+from torchoutil import (
+    lengths_to_pad_mask,
+    masked_mean,
+    randperm_diff,
+    tensor_to_pad_mask,
+)
+from torchoutil.nn import Transpose
 
 from dcase24t6.augmentations.mixup import sample_lambda
+from dcase24t6.datamodules.hdf import Stage
 from dcase24t6.models.aac import AACModel
+from dcase24t6.nn.decoders.aac_tfmer import AACTransformerDecoder
+from dcase24t6.nn.decoding.beam import generate
+from dcase24t6.nn.decoding.common import get_forbid_rep_mask_content_words
+from dcase24t6.nn.decoding.forcing import teacher_forcing
+from dcase24t6.nn.decoding.greedy import greedy_search
 from dcase24t6.optim.utils import create_params_groups
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
 
-Batch = dict
-TrainBatch = dict
-ValBatch = dict
-TestBatch = dict
-PredictBatch = dict
-Encoded = dict
-Decoded = dict
+
+class Batch(TypedDict):
+    frame_embs: Tensor
+    frame_embs_shape: Tensor
+
+
+class TrainBatch(Batch):
+    captions: Tensor
+
+
+class ValBatch(Batch):
+    mult_captions: Tensor
+
+
+TestBatch = ValBatch
+PredictBatch = ValBatch
+ModelOutput = Tensor | tuple[Tensor, Tensor, Tensor, Tensor]
+
+
+class AudioEncoding(TypedDict):
+    frame_embs: Tensor
+    frame_embs_pad_mask: Tensor
 
 
 class TransDecoderModel(AACModel):
     def __init__(
         self,
         tokenizer: AACTokenizer,
-        # Model args
+        # Model architecture args
+        in_features: int = 768,
+        d_model: int = 256,
         # Train args
         label_smoothing: float = 0.2,
         mixup_alpha: float = 0.4,
+        # Inference args
+        min_pred_size: int = 3,
+        max_pred_size: int = 20,
+        beam_size: int = 3,
         # Optimizer args
         custom_weight_decay: bool = True,
         lr: float = 5e-4,
         betas: tuple[float, float] = (0.9, 0.999),
         eps: float = 1e-8,
         weight_decay: float = 2.0,
+        # Other args
+        verbose: int = 0,
     ) -> None:
         super().__init__(tokenizer)
+        self.projection: nn.Module = nn.Identity()
+        self.decoder: AACTransformerDecoder = None  # type: ignore
         self.save_hyperparameters(ignore=["tokenizer"])
+
+    def is_built(self) -> bool:
+        return self.decoder is not None
+
+    def setup(self, stage: Stage) -> None:
+        if not self.is_built():
+            projection = nn.Sequential(
+                nn.Dropout(p=0.5),
+                Transpose(1, 2),
+                nn.Linear(self.hparams["in_features"], self.hparams["d_model"]),
+                nn.ReLU(inplace=True),
+                Transpose(1, 2),
+                nn.Dropout(p=0.5),
+            )
+            decoder = AACTransformerDecoder(
+                vocab_size=self.tokenizer.get_vocab_size(),
+                bos_id=self.tokenizer.bos_token_id,
+                eos_id=self.tokenizer.eos_token_id,
+                pad_id=self.tokenizer.pad_token_id,
+                d_model=self.hparams["d_model"],
+            )
+
+            forbid_rep_mask = get_forbid_rep_mask_content_words(
+                self.tokenizer.get_vocab_size(),
+                token_to_id=self.tokenizer.get_token_to_id(),
+                device=self.device,
+                verbose=self.hparams["verbose"],
+            )
+
+            self.projection = projection
+            self.decoder = decoder
+            self.register_buffer("forbid_rep_mask", forbid_rep_mask)
+            self.forbid_rep_mask: Optional[Tensor]
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         if self.hparams["custom_weight_decay"]:
@@ -55,8 +125,8 @@ class TransDecoderModel(AACModel):
         return optimizer
 
     def training_step(self, batch: TrainBatch) -> Tensor:
-        audio = batch["audio"]
-        audio_shape = batch["audio_shape"]
+        audio = batch["frame_embs"]
+        audio_shape = batch["frame_embs_shape"]
         captions = batch["captions"]
 
         batch_size, _max_caption_length = captions.shape
@@ -66,13 +136,18 @@ class TransDecoderModel(AACModel):
 
         indexes = randperm_diff(batch_size, device=self.device)
         audio, audio_shape, lbd = self.mix_audio(audio, audio_shape, indexes)
-        captions_in_pad_mask = tensor_to_pad_mask(captions_in, pad_value=self.pad_id)
+        captions_in_pad_mask = tensor_to_pad_mask(
+            captions_in, pad_value=self.tokenizer.pad_token_id
+        )
         captions_in = self.input_emb_layer(captions_in)
         captions_in = captions_in * lbd + captions_in[indexes] * (1.0 - lbd)
 
         encoded = self.encode_audio(audio, audio_shape)
         decoded = self.decode_audio(
-            encoded, captions=captions_in, captions_pad_mask=captions_in_pad_mask
+            encoded,
+            captions=captions_in,
+            captions_pad_mask=captions_in_pad_mask,
+            method="forcing",
         )
         logits = decoded["logits"]
 
@@ -82,14 +157,14 @@ class TransDecoderModel(AACModel):
         return loss
 
     def validation_step(self, batch: ValBatch) -> None:
-        audio = batch["audio"]
-        audio_shape = batch["audio_shape"]
+        audio = batch["frame_embs"]
+        audio_shape = batch["frame_embs_shape"]
         mult_captions = batch["mult_captions"]
 
         batch_size, max_captions_per_audio, _max_caption_length = mult_captions.shape
         mult_captions_in = mult_captions[:, :, :-1]
         mult_captions_out = mult_captions[:, :, 1:]
-        is_valid_caption = (mult_captions != self.pad_id).any(dim=2)
+        is_valid_caption = (mult_captions != self.tokenizer.pad_token_id).any(dim=2)
         del mult_captions
 
         encoded = self.encode_audio(audio, audio_shape)
@@ -102,7 +177,7 @@ class TransDecoderModel(AACModel):
             device=self.device,
         )
 
-        for i in range(mult_captions_in.shape[1]):
+        for i in range(max_captions_per_audio):
             captions_in_i = mult_captions_in[:, i]
             captions_out_i = mult_captions_out[:, i]
 
@@ -115,14 +190,14 @@ class TransDecoderModel(AACModel):
         self.log("val/loss", loss)
 
     def test_step(self, batch: TestBatch) -> dict[str, Any]:
-        audio = batch["audio"]
-        audio_shape = batch["audio_shape"]
+        audio = batch["frame_embs"]
+        audio_shape = batch["frame_embs_shape"]
         mult_captions = batch["mult_captions"]
 
         batch_size, max_captions_per_audio, _max_caption_length = mult_captions.shape
         mult_captions_in = mult_captions[:, :, :-1]
         mult_captions_out = mult_captions[:, :, 1:]
-        is_valid_caption = (mult_captions != self.pad_id).any(dim=2)
+        is_valid_caption = (mult_captions != self.tokenizer.pad_token_id).any(dim=2)
         del mult_captions
 
         encoded = self.encode_audio(audio, audio_shape)
@@ -135,7 +210,7 @@ class TransDecoderModel(AACModel):
             device=self.device,
         )
 
-        for i in range(mult_captions_in.shape[1]):
+        for i in range(max_captions_per_audio):
             captions_in_i = mult_captions_in[:, i]
             captions_out_i = mult_captions_out[:, i]
 
@@ -156,9 +231,9 @@ class TransDecoderModel(AACModel):
         self,
         batch: Batch,
         **method_kwargs,
-    ) -> Decoded:
-        audio = batch["audio"]
-        audio_shape = batch["audio_shape"]
+    ) -> ModelOutput:
+        audio = batch["frame_embs"]
+        audio_shape = batch["frame_embs_shape"]
         captions = batch.get("captions", None)
         encoded = self.encode_audio(audio, audio_shape)
         decoded = self.decode_audio(encoded, captions, **method_kwargs)
@@ -168,7 +243,7 @@ class TransDecoderModel(AACModel):
         loss = F.cross_entropy(
             logits,
             target,
-            ignore_index=self.pad_id,
+            ignore_index=self.tokenizer.pad_token_id,
             label_smoothing=self.hparams["label_smoothing"],
         )
         return loss
@@ -177,7 +252,7 @@ class TransDecoderModel(AACModel):
         loss = F.cross_entropy(
             logits,
             target,
-            ignore_index=self.pad_id,
+            ignore_index=self.tokenizer.pad_token_id,
         )
         return loss
 
@@ -185,14 +260,14 @@ class TransDecoderModel(AACModel):
         losses = F.cross_entropy(
             logits,
             target,
-            ignore_index=self.pad_id,
+            ignore_index=self.tokenizer.pad_token_id,
             reduction="none",
         )
-        losses = masked_mean(losses, target != self.pad_id, dim=1)
+        losses = masked_mean(losses, target != self.tokenizer.pad_token_id, dim=1)
         return losses
 
     def input_emb_layer(self, ids: Tensor) -> Tensor:
-        raise NotImplementedError
+        return self.decoder.emb_layer(ids)
 
     def mix_audio(
         self, audio: Tensor, audio_shape: Tensor, indexes: Tensor
@@ -206,35 +281,85 @@ class TransDecoderModel(AACModel):
         mixed_audio_shape = torch.max(audio_shape, audio_shape[indexes])
         return mixed_audio, mixed_audio_shape, lbd
 
-    def encode_audio(self, audio: Tensor, audio_shape: Tensor) -> Encoded:
-        raise NotImplementedError
+    def encode_audio(
+        self, frame_embs: Tensor, frame_embs_shape: Tensor
+    ) -> AudioEncoding:
+        frame_embs = frame_embs.squeeze(dim=1)  # remove channel dim
+        frame_embs_lens = frame_embs_shape[:, 1]
+
+        # frame_embs: (bsize, max_seq_size, in_features)
+        # frame_embs_lens: (bsize,)
+
+        # breakpoint()
+        frame_embs = self.projection(frame_embs)
+
+        time_dim = -1
+        frame_embs_max_len = max(
+            int(frame_embs_lens.max().item()), frame_embs.shape[time_dim]
+        )
+        frame_embs_pad_mask = lengths_to_pad_mask(frame_embs_lens, frame_embs_max_len)
+
+        return {
+            "frame_embs": frame_embs,
+            "frame_embs_pad_mask": frame_embs_pad_mask,
+        }
 
     def decode_audio(
         self,
-        encoded: Encoded,
+        audio_encoding: AudioEncoding,
         captions: Optional[Tensor] = None,
         captions_pad_mask: Optional[Tensor] = None,
         method: str = "auto",
-        **method_kwargs,
-    ) -> Decoded:
-        raise NotImplementedError
+        **method_overrides,
+    ) -> Any:
+        if method == "auto":
+            if captions is None:
+                method = "generate"
+            else:
+                method = "forcing"
 
-    @property
-    def pad_id(self) -> int:
-        raise NotImplementedError
+        common_args: dict[str, Any] = {
+            "decoder": self.decoder,
+            "pad_id": self.tokenizer.pad_token_id,
+            "bos_id": self.tokenizer.bos_token_id,
+            "eos_id": self.tokenizer.eos_token_id,
+            "vocab_size": self.tokenizer.get_vocab_size(),
+        } | audio_encoding
 
-    @property
-    def bos_id(self) -> int:
-        raise NotImplementedError
+        match method:
+            case "forcing":
+                forcing_args = {
+                    "caps_in": captions,
+                    "caps_in_pad_mask": captions_pad_mask,
+                }
+                kwargs = common_args | forcing_args | method_overrides
+                logits = teacher_forcing(**kwargs)
+                outs = {"logits": logits}
 
-    @property
-    def eos_id(self) -> int:
-        raise NotImplementedError
+            case "greedy":
+                greedy_args = {
+                    "min_pred_size": self.hparams["min_pred_size"],
+                    "max_pred_size": self.hparams["max_pred_size"],
+                    "forbid_rep_mask": self.forbid_rep_mask,
+                }
+                kwargs = common_args | greedy_args | method_overrides
+                logits = greedy_search(**kwargs)
+                outs = {"logits": logits}
 
-    @property
-    def unk_id(self) -> int:
-        raise NotImplementedError
+            case "generate":
+                generate_args = {
+                    "min_pred_size": self.hparams["min_pred_size"],
+                    "max_pred_size": self.hparams["max_pred_size"],
+                    "forbid_rep_mask": self.forbid_rep_mask,
+                    "beam_size": self.hparams["beam_size"],
+                }
+                kwargs = common_args | generate_args | method_overrides
+                outs = generate(**kwargs)
 
-    @property
-    def vocab_size(self) -> int:
-        raise NotImplementedError
+            case method:
+                DECODE_METHODS = ("forcing", "greedy", "generate")
+                raise ValueError(
+                    f"Unknown argument {method=}. (expected one of {DECODE_METHODS})"
+                )
+
+        return outs
