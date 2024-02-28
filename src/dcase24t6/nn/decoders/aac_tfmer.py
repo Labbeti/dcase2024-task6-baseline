@@ -17,8 +17,6 @@ class AACTransformerDecoder(nn.TransformerDecoder):
     def __init__(
         self,
         vocab_size: int,
-        bos_id: int,
-        eos_id: int,
         pad_id: int,
         acti_name: Union[str, Callable] = "gelu",
         d_model: int = 256,
@@ -57,8 +55,6 @@ class AACTransformerDecoder(nn.TransformerDecoder):
 
         # Hparams
         self.vocab_size = vocab_size
-        self.bos_id = bos_id
-        self.eos_id = eos_id
         self.pad_id = pad_id
 
         # Layers
@@ -75,25 +71,16 @@ class AACTransformerDecoder(nn.TransformerDecoder):
         caps_in_sq_mask: Optional[Tensor],
     ) -> Tensor:
         """
-        :param frame_embs: (n_frames, bsize, emb_size)
+        :param frame_embs: (n_frames, bsize, d_model)
         :param frame_embs_pad_mask: (bsize, n_frames) or None
-        :param caps_in: (caps_in_len, bsize)
+        :param caps_in: (caps_in_len, bsize) or (caps_in_len, bsize, d_model)
         :param caps_in_pad_mask: (caps_in_len, bsize) or None
         :param caps_in_sq_mask: (caps_in_len, caps_in_len)
         :returns: logits of shape (caps_in_len, bsize, vocab_size)
         """
-        assert frame_embs.ndim == 3, f"{frame_embs.shape=}"
-        assert (
-            frame_embs_pad_mask is None or frame_embs_pad_mask.ndim == 2
-        ), f"{frame_embs_pad_mask.shape=}"
-        assert caps_in.is_floating_point() or caps_in.ndim == 2, f"{caps_in.shape=}"
-        assert not caps_in.is_floating_point() or caps_in.ndim == 3, f"{caps_in.shape=}"
-        assert (
-            caps_in_pad_mask is None or caps_in_pad_mask.ndim == 2
-        ), f"{caps_in_pad_mask.shape=}"
-        assert (
-            caps_in_sq_mask is None or caps_in_sq_mask.ndim == 2
-        ), f"{caps_in_sq_mask.shape=}"
+        self._check_args(
+            frame_embs, frame_embs_pad_mask, caps_in, caps_in_pad_mask, caps_in_sq_mask
+        )
 
         if not caps_in.is_floating_point():
             caps_in = self.emb_layer(caps_in)
@@ -114,3 +101,36 @@ class AACTransformerDecoder(nn.TransformerDecoder):
         tok_logits_out = self.classifier(tok_embs_outs)
 
         return tok_logits_out
+
+    def _check_args(
+        self,
+        frame_embs: Tensor,
+        frame_embs_pad_mask: Optional[Tensor],
+        caps_in: Tensor,
+        caps_in_pad_mask: Optional[Tensor],
+        caps_in_sq_mask: Optional[Tensor],
+    ) -> None:
+        if frame_embs.ndim != 3:
+            raise ValueError(f"Invalid argument ndim {frame_embs.ndim=} (expected 3)")
+
+        if caps_in.is_floating_point():
+            if caps_in.ndim != 3:
+                raise ValueError(f"Invalid argument ndim {caps_in.ndim=} (expected 3)")
+        else:
+            if caps_in.ndim != 2:
+                raise ValueError(f"Invalid argument ndim {caps_in.ndim=} (expected 2)")
+
+        if frame_embs_pad_mask is not None and frame_embs_pad_mask.ndim != 2:
+            raise ValueError(
+                f"Invalid argument ndim {frame_embs_pad_mask.ndim=} (expected 2)"
+            )
+
+        if caps_in_pad_mask is not None and caps_in_pad_mask.ndim != 2:
+            raise ValueError(
+                f"Invalid argument ndim {caps_in_pad_mask.ndim=} (expected 2)"
+            )
+
+        if caps_in_sq_mask is not None and caps_in_sq_mask.ndim != 2:
+            raise ValueError(
+                f"Invalid argument ndim {caps_in_sq_mask.ndim=} (expected 2)"
+            )

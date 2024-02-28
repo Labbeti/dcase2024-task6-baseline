@@ -29,7 +29,6 @@ def train(cfg: DictConfig) -> None | float:
         logger.info(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     loggers: Logger | list[Logger] = instantiate(cfg.log)
-    # breakpoint()
     callbacks = get_callbacks(cfg)
 
     tokenizer = instantiate(cfg.tokenizer)

@@ -3,24 +3,24 @@
 
 import random
 from pathlib import Path
-from typing import Any, Iterable, Literal
+from typing import Any, Callable, Iterable, Literal
 
 import torch
+from lightning import LightningDataModule
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.dataset import ConcatDataset
+from torch.utils.data.dataset import ConcatDataset, Dataset
 from torchoutil.utils.data.collate import AdvancedCollateDict
 from torchoutil.utils.data.dataloader import get_auto_num_cpus
 from torchoutil.utils.data.dataset import EmptyDataset, TransformWrapper
 from torchoutil.utils.hdf import HDFDataset
 
-from dcase24t6.datamodules.aac import AACDatamodule
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
 
 Stage = Literal["fit", "validate", "test", "predict"] | None
 ALL_STAGES = ("fit", "validate", "test", "predict")
 
 
-class HDFDatamodule(AACDatamodule):
+class HDFDatamodule(LightningDataModule):
     def __init__(
         self,
         tokenizer: AACTokenizer,
@@ -39,13 +39,25 @@ class HDFDatamodule(AACDatamodule):
     ) -> None:
         root = Path(root)
         if isinstance(train_hdfs, str):
-            train_hdfs = (train_hdfs,)
+            train_hdfs = [train_hdfs]
+        else:
+            train_hdfs = list(train_hdfs)
+
         if isinstance(val_hdfs, str):
-            val_hdfs = (val_hdfs,)
+            val_hdfs = [val_hdfs]
+        else:
+            val_hdfs = list(val_hdfs)
+
         if isinstance(test_hdfs, str):
-            test_hdfs = (test_hdfs,)
+            test_hdfs = [test_hdfs]
+        else:
+            test_hdfs = list(test_hdfs)
+
         if isinstance(predict_hdfs, str):
-            predict_hdfs = (predict_hdfs,)
+            predict_hdfs = [predict_hdfs]
+        else:
+            predict_hdfs = list(predict_hdfs)
+
         if num_workers == "auto":
             num_workers = get_auto_num_cpus()
 
@@ -67,7 +79,7 @@ class HDFDatamodule(AACDatamodule):
         self.test_collate_fn = None
         self.predict_collate_fn = None
 
-        self.save_hyperparameters(ignore=["tokenizer", "pre_save_transform"])
+        self.save_hyperparameters(ignore=["tokenizer"])
 
     def setup(self, stage: Stage = None) -> None:
         match stage:
@@ -109,16 +121,18 @@ class HDFDatamodule(AACDatamodule):
         ref = random.choice(refs)
         caption = self.tokenizer.encode(ref, disable_unk_token=True)
         caption = torch.as_tensor(caption.ids)
+
         item["captions"] = caption
         item["references"] = ref
         return item
 
     def val_transform(self, item: dict[str, Any]) -> dict[str, Any]:
         refs = item.pop("captions")
-        item["mult_references"] = refs
         captions = self.tokenizer.encode_batch(refs)
         captions = torch.as_tensor([cap.ids for cap in captions])
+
         item["mult_captions"] = captions
+        item["mult_references"] = refs
         return item
 
     def test_transform(self, item: dict[str, Any]) -> dict[str, Any]:
@@ -136,14 +150,13 @@ class HDFDatamodule(AACDatamodule):
             hdf_fpath = self.root.joinpath("HDF", hdf_fname)
             dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
 
-            # note: get captions before transform
+            # note: get raw captions before transform
             flat_references += [ref for refs in dataset[:, "captions"] for ref in refs]
 
             dataset = TransformWrapper(dataset, self.train_transform)
             datasets[hdf_fname] = dataset
 
         dataset = ConcatDataset(datasets.values())
-        dataset = TransformWrapper(dataset, self.train_transform)
 
         pad_values = {
             "frame_embs": 0.0,
@@ -156,86 +169,61 @@ class HDFDatamodule(AACDatamodule):
         self.tokenizer.train_from_iterator(flat_references)
 
     def setup_val(self) -> None:
-        hdf_fnames = self.val_hdfs
-
-        datasets = {}
-        for hdf_fname in hdf_fnames:
-            hdf_fpath = self.root.joinpath("HDF", hdf_fname)
-            dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
-            dataset = TransformWrapper(dataset, self.val_transform)
-            datasets[hdf_fname] = dataset
-
-        pad_values = {
-            "frame_embs": 0.0,
-            "mult_captions": self.tokenizer.pad_token_id,
-        }
-        val_collate_fn = AdvancedCollateDict(pad_values)
-
+        datasets, collate_fn = self._common_setup(
+            self.val_hdfs,
+            self.val_transform,
+        )
         self.val_datasets = datasets
-        self.val_collate_fn = val_collate_fn
+        self.val_collate_fn = collate_fn
 
     def setup_test(self) -> None:
-        hdf_fnames = self.test_hdfs
-
-        datasets = {}
-        for hdf_fname in hdf_fnames:
-            hdf_fpath = self.root.joinpath("HDF", hdf_fname)
-            dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
-            dataset = TransformWrapper(dataset, self.test_transform)
-            datasets[hdf_fname] = dataset
-
-        pad_values = {
-            "frame_embs": 0.0,
-            "mult_captions": self.tokenizer.pad_token_id,
-        }
-        test_collate_fn = AdvancedCollateDict(pad_values)
-
+        datasets, collate_fn = self._common_setup(
+            self.test_hdfs,
+            self.test_transform,
+        )
         self.test_datasets = datasets
-        self.test_collate_fn = test_collate_fn
+        self.test_collate_fn = collate_fn
 
     def setup_predict(self) -> None:
-        hdf_fnames = self.predict_hdfs
+        datasets, collate_fn = self._common_setup(
+            self.predict_hdfs,
+            self.predict_transform,
+        )
+        self.predict_datasets = datasets
+        self.predict_collate_fn = collate_fn
 
+    def _common_setup(
+        self,
+        hdf_fnames: list[str],
+        transform: Callable | None,
+    ) -> tuple[dict, Callable]:
         datasets = {}
         for hdf_fname in hdf_fnames:
             hdf_fpath = self.root.joinpath("HDF", hdf_fname)
             dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
-            dataset = TransformWrapper(dataset, self.predict_transform)
+            dataset = TransformWrapper(dataset, transform)
             datasets[hdf_fname] = dataset
 
         pad_values = {
             "frame_embs": 0.0,
             "mult_captions": self.tokenizer.pad_token_id,
         }
-        predict_collate_fn = AdvancedCollateDict(pad_values)
-
-        self.predict_datasets = datasets
-        self.predict_collate_fn = predict_collate_fn
+        collate_fn = AdvancedCollateDict(pad_values)
+        return datasets, collate_fn
 
     def teardown_train(self) -> None:
-        if isinstance(self.train_dataset, HDFDataset):
-            self.train_dataset.close()
         self.train_dataset = EmptyDataset()
         self.train_collate_fn = None
 
     def teardown_val(self) -> None:
-        for dataset in self.val_datasets.values():
-            if isinstance(dataset, HDFDataset):
-                dataset.close()
         self.val_datasets = {}
         self.val_collate_fn = None
 
     def teardown_test(self) -> None:
-        for dataset in self.test_datasets.values():
-            if isinstance(dataset, HDFDataset):
-                dataset.close()
         self.test_datasets = {}
         self.test_collate_fn = None
 
     def teardown_predict(self) -> None:
-        for dataset in self.predict_datasets.values():
-            if isinstance(dataset, HDFDataset):
-                dataset.close()
         self.predict_datasets = {}
         self.predict_collate_fn = None
 
@@ -252,43 +240,27 @@ class HDFDatamodule(AACDatamodule):
         )
 
     def val_dataloader(self) -> list[DataLoader]:
-        datasets = self.val_datasets.values()
-        return [
-            DataLoader(
-                dataset=dataset,
-                batch_size=self.hparams["batch_size"],
-                num_workers=self.hparams["num_workers"],
-                collate_fn=self.val_collate_fn,
-                pin_memory=self.hparams["pin_memory"],
-                drop_last=False,
-                shuffle=False,
-            )
-            for dataset in datasets
-        ]
+        return self._get_dataloaders(self.val_datasets.values(), self.val_collate_fn)
 
     def test_dataloader(self) -> list[DataLoader]:
-        datasets = self.test_datasets.values()
-        return [
-            DataLoader(
-                dataset=dataset,
-                batch_size=self.hparams["batch_size"],
-                num_workers=self.hparams["num_workers"],
-                collate_fn=self.test_collate_fn,
-                pin_memory=self.hparams["pin_memory"],
-                drop_last=False,
-                shuffle=False,
-            )
-            for dataset in datasets
-        ]
+        return self._get_dataloaders(self.test_datasets.values(), self.test_collate_fn)
 
     def predict_dataloader(self) -> list[DataLoader]:
-        datasets = self.predict_datasets.values()
+        return self._get_dataloaders(
+            self.predict_datasets.values(), self.predict_collate_fn
+        )
+
+    def _get_dataloaders(
+        self,
+        datasets: Iterable[Dataset],
+        collate_fn: Callable | None,
+    ) -> list[DataLoader]:
         return [
             DataLoader(
                 dataset=dataset,
                 batch_size=self.hparams["batch_size"],
                 num_workers=self.hparams["num_workers"],
-                collate_fn=self.predict_collate_fn,
+                collate_fn=collate_fn,
                 pin_memory=self.hparams["pin_memory"],
                 drop_last=False,
                 shuffle=False,

@@ -12,9 +12,6 @@ from dcase24t6.nn.decoding.common import AACDecoder
 def teacher_forcing(
     decoder: AACDecoder,
     pad_id: int,
-    bos_id: int,
-    eos_id: int,
-    vocab_size: int,
     frame_embs: Tensor,
     frame_embs_pad_mask: Tensor,
     caps_in: Tensor,
@@ -23,11 +20,8 @@ def teacher_forcing(
 ) -> Tensor:
     """Compute logits using previous references tokens.
 
-    :param decoder: TODO
+    :param decoder: The decoder part of the model.
     :param pad_id: Padding token id.
-    :param bos_id: Begin-of-Sentence token id.
-    :param eos_id: End-of-Sentence token id.
-    :param vocab_size: Vocabulary size of the model.
     :param frame_embs: (bsize, frame_emb_size, n_frames)
     :param frame_embs_pad_mask: (bsize, n_frames)
     :param caps_in: (bsize, caps_size) or (bsize, caps_size, caps_emb_size)

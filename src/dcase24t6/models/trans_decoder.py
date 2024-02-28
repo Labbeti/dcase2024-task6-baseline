@@ -43,7 +43,7 @@ class ValBatch(Batch):
 
 TestBatch = ValBatch
 PredictBatch = ValBatch
-ModelOutput = Tensor | tuple[Tensor, Tensor, Tensor, Tensor]
+ModelOutput = dict[str, Tensor]
 
 
 class AudioEncoding(TypedDict):
@@ -94,14 +94,12 @@ class TransDecoderModel(AACModel):
             )
             decoder = AACTransformerDecoder(
                 vocab_size=self.tokenizer.get_vocab_size(),
-                bos_id=self.tokenizer.bos_token_id,
-                eos_id=self.tokenizer.eos_token_id,
                 pad_id=self.tokenizer.pad_token_id,
                 d_model=self.hparams["d_model"],
             )
 
             forbid_rep_mask = get_forbid_rep_mask_content_words(
-                self.tokenizer.get_vocab_size(),
+                vocab_size=self.tokenizer.get_vocab_size(),
                 token_to_id=self.tokenizer.get_token_to_id(),
                 device=self.device,
                 verbose=self.hparams["verbose"],
@@ -129,12 +127,12 @@ class TransDecoderModel(AACModel):
         audio_shape = batch["frame_embs_shape"]
         captions = batch["captions"]
 
-        batch_size, _max_caption_length = captions.shape
-        captions_in = captions[:, :, :-1]
-        captions_out = captions[:, :, 1:]
+        bsize, _max_caption_length = captions.shape
+        captions_in = captions[:, :-1]
+        captions_out = captions[:, 1:]
         del captions
 
-        indexes = randperm_diff(batch_size, device=self.device)
+        indexes = randperm_diff(bsize, device=self.device)
         audio, audio_shape, lbd = self.mix_audio(audio, audio_shape, indexes)
         captions_in_pad_mask = tensor_to_pad_mask(
             captions_in, pad_value=self.tokenizer.pad_token_id
@@ -152,7 +150,7 @@ class TransDecoderModel(AACModel):
         logits = decoded["logits"]
 
         loss = self.train_criterion(logits, captions_out)
-        self.log("train/loss", loss)
+        self.log("train/loss", loss, batch_size=bsize)
 
         return loss
 
@@ -161,7 +159,7 @@ class TransDecoderModel(AACModel):
         audio_shape = batch["frame_embs_shape"]
         mult_captions = batch["mult_captions"]
 
-        batch_size, max_captions_per_audio, _max_caption_length = mult_captions.shape
+        bsize, max_captions_per_audio, _max_caption_length = mult_captions.shape
         mult_captions_in = mult_captions[:, :, :-1]
         mult_captions_out = mult_captions[:, :, 1:]
         is_valid_caption = (mult_captions != self.tokenizer.pad_token_id).any(dim=2)
@@ -170,7 +168,7 @@ class TransDecoderModel(AACModel):
         encoded = self.encode_audio(audio, audio_shape)
         losses = torch.empty(
             (
-                batch_size,
+                bsize,
                 max_captions_per_audio,
             ),
             dtype=self.dtype,
@@ -187,14 +185,14 @@ class TransDecoderModel(AACModel):
             losses[:, i] = losses_i
 
         loss = masked_mean(losses, is_valid_caption)
-        self.log("val/loss", loss)
+        self.log("val/loss", loss, batch_size=bsize)
 
     def test_step(self, batch: TestBatch) -> dict[str, Any]:
         audio = batch["frame_embs"]
         audio_shape = batch["frame_embs_shape"]
         mult_captions = batch["mult_captions"]
 
-        batch_size, max_captions_per_audio, _max_caption_length = mult_captions.shape
+        bsize, max_captions_per_audio, _max_caption_length = mult_captions.shape
         mult_captions_in = mult_captions[:, :, :-1]
         mult_captions_out = mult_captions[:, :, 1:]
         is_valid_caption = (mult_captions != self.tokenizer.pad_token_id).any(dim=2)
@@ -203,7 +201,7 @@ class TransDecoderModel(AACModel):
         encoded = self.encode_audio(audio, audio_shape)
         losses = torch.empty(
             (
-                batch_size,
+                bsize,
                 max_captions_per_audio,
             ),
             dtype=self.dtype,
@@ -220,7 +218,7 @@ class TransDecoderModel(AACModel):
             losses[:, i] = losses_i
 
         loss = masked_mean(losses, is_valid_caption)
-        self.log("test/loss", loss)
+        self.log("test/loss", loss, batch_size=bsize)
 
         output = {
             "loss": losses,
@@ -263,6 +261,7 @@ class TransDecoderModel(AACModel):
             ignore_index=self.tokenizer.pad_token_id,
             reduction="none",
         )
+        # We apply mean only on second dim to get a tensor of shape (bsize,)
         losses = masked_mean(losses, target != self.tokenizer.pad_token_id, dim=1)
         return losses
 
@@ -284,16 +283,18 @@ class TransDecoderModel(AACModel):
     def encode_audio(
         self, frame_embs: Tensor, frame_embs_shape: Tensor
     ) -> AudioEncoding:
-        frame_embs = frame_embs.squeeze(dim=1)  # remove channel dim
-        frame_embs_lens = frame_embs_shape[:, 1]
-
-        # frame_embs: (bsize, max_seq_size, in_features)
-        # frame_embs_lens: (bsize,)
-
-        # breakpoint()
-        frame_embs = self.projection(frame_embs)
+        # frame_embs: (bsize, 1, in_features, max_seq_size)
+        # frame_embs_shape: (bsize, 3)
 
         time_dim = -1
+
+        frame_embs = frame_embs.squeeze(dim=1)  # remove channel dim
+        frame_embs_lens = frame_embs_shape[:, time_dim]
+        # frame_embs_lens: (bsize,)
+
+        frame_embs = self.projection(frame_embs)
+        # frame_embs: (bsize, d_model, max_seq_size)
+
         frame_embs_max_len = max(
             int(frame_embs_lens.max().item()), frame_embs.shape[time_dim]
         )
@@ -311,7 +312,7 @@ class TransDecoderModel(AACModel):
         captions_pad_mask: Optional[Tensor] = None,
         method: str = "auto",
         **method_overrides,
-    ) -> Any:
+    ) -> dict[str, Tensor]:
         if method == "auto":
             if captions is None:
                 method = "generate"
@@ -321,9 +322,6 @@ class TransDecoderModel(AACModel):
         common_args: dict[str, Any] = {
             "decoder": self.decoder,
             "pad_id": self.tokenizer.pad_token_id,
-            "bos_id": self.tokenizer.bos_token_id,
-            "eos_id": self.tokenizer.eos_token_id,
-            "vocab_size": self.tokenizer.get_vocab_size(),
         } | audio_encoding
 
         match method:
@@ -338,6 +336,9 @@ class TransDecoderModel(AACModel):
 
             case "greedy":
                 greedy_args = {
+                    "bos_id": self.tokenizer.bos_token_id,
+                    "eos_id": self.tokenizer.eos_token_id,
+                    "vocab_size": self.tokenizer.get_vocab_size(),
                     "min_pred_size": self.hparams["min_pred_size"],
                     "max_pred_size": self.hparams["max_pred_size"],
                     "forbid_rep_mask": self.forbid_rep_mask,
@@ -348,6 +349,9 @@ class TransDecoderModel(AACModel):
 
             case "generate":
                 generate_args = {
+                    "bos_id": self.tokenizer.bos_token_id,
+                    "eos_id": self.tokenizer.eos_token_id,
+                    "vocab_size": self.tokenizer.get_vocab_size(),
                     "min_pred_size": self.hparams["min_pred_size"],
                     "max_pred_size": self.hparams["max_pred_size"],
                     "forbid_rep_mask": self.forbid_rep_mask,
@@ -355,9 +359,29 @@ class TransDecoderModel(AACModel):
                 }
                 kwargs = common_args | generate_args | method_overrides
                 outs = generate(**kwargs)
+                outs = outs._asdict()
+
+                # Decode predictions ids to sentences
+                for name in outs.keys():
+                    if "prediction" not in name:
+                        continue
+                    preds: Tensor = outs[name]
+                    if preds.ndim == 2:
+                        cands = self.tokenizer.decode_batch(preds.tolist())
+                    elif preds.ndim == 3:
+                        cands = [
+                            self.tokenizer.decode_batch(value_i)
+                            for value_i in preds.tolist()
+                        ]
+                    else:
+                        raise ValueError(
+                            f"Invalid shape {preds.ndim=}. (expected one of {(2, 3)})"
+                        )
+                    new_name = name.replace("prediction", "candidate")
+                    outs[new_name] = cands
 
             case method:
-                DECODE_METHODS = ("forcing", "greedy", "generate")
+                DECODE_METHODS = ("forcing", "greedy", "generate", "auto")
                 raise ValueError(
                     f"Unknown argument {method=}. (expected one of {DECODE_METHODS})"
                 )

@@ -3,7 +3,7 @@
 
 import logging
 import math
-from typing import Any, Optional, Union
+from typing import Any, NamedTuple, Optional, Union
 
 import torch
 from torch import Tensor, nn
@@ -19,6 +19,13 @@ from dcase24t6.nn.decoding.common import AACDecoder
 pylog = logging.getLogger(__name__)
 
 
+class GenerateOutput(NamedTuple):
+    predictions: Tensor  # (bsize, max_best_pred_size)
+    log_probs: Tensor  # (bsize,)
+    beam_predictions: Tensor  # (bsize, beam_size, max_global_pred_size)
+    beam_log_probs: Tensor  # (bsize, beam_size)
+
+
 @torch.no_grad()
 def generate(
     decoder: AACDecoder,
@@ -32,7 +39,7 @@ def generate(
     min_pred_size: int = 0,
     max_pred_size: int = 20,
     forbid_rep_mask: Optional[Tensor] = None,
-) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+) -> GenerateOutput:
     """Generate sentences using beam search algorithm with some additional options.
 
     Note: works per batch, which can requires a lot of memory if batch_size and beam_size increases.
@@ -47,7 +54,9 @@ def generate(
     :param beam_size: The number of beams for the search. defaults to 2.
     :param min_pred_size: Minimal number of tokens in the output sentences. defaults to 0.
     :param max_pred_size: Maximal number of tokens in the output sentences. defaults to 20.
-    :param forbid_rep_mask: (vocab_size,) or None
+    :param forbid_rep_mask: Binary mask to forbid the model to predict the same token twice.
+        A token at index i can be forbidden only if forbid_rep_mask[i] is True.
+        Can be a tensor of shape (vocab_size,) or None.
     :returns: A tuple containing 4 tensors: (best_preds_out, best_avg_lprobs, global_preds_out, global_avg_lprobs) with the following shapes:
         best_preds_out: (bsize, max_best_pred_size)
         best_avg_lprobs: (bsize,)
@@ -225,7 +234,9 @@ def generate(
     best_preds_maxlen = best_preds_lens.max() + 1
     best_preds_out = best_preds_out[:, :best_preds_maxlen].contiguous()
 
-    return best_preds_out, best_avg_lprobs, global_preds_out, global_avg_lprobs
+    return GenerateOutput(
+        best_preds_out, best_avg_lprobs, global_preds_out, global_avg_lprobs
+    )
 
 
 def _select_k_next_toks(

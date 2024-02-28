@@ -35,7 +35,9 @@ def greedy_search(
     :param frame_embs_pad_mask: (bsize, audio_seq_size)
     :param min_pred_size: Minimal number of tokens in the output sentences. defaults to 0.
     :param max_pred_size: Maximal number of tokens in the output sentences. defaults to 20.
-    :param forbid_rep_mask: TODO
+    :param forbid_rep_mask: Binary mask to forbid the model to predict the same token twice.
+        A token at index i can be forbidden only if forbid_rep_mask[i] is True.
+        Can be a tensor of shape (vocab_size,) or None.
     :returns: logits of shape (bsize, vocab_size, max_pred_size or less)
     """
     assert min_pred_size >= 0
