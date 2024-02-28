@@ -1,5 +1,0 @@
-# @package trainer
-
-_target_: "lightning.pytorch.trainer.Trainer"
-
-max_epochs: 400

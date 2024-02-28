@@ -12,11 +12,11 @@ job:
 
 # Set hydra working dir for single runs
 run:
-  dir: "${path.logs}/${log_name}"
+  dir: "${path.save}/${save_name}"
 
 # Set hydra working dir for multiruns
 sweep:
-  dir: "${path.logs}/${log_name}"
+  dir: "${path.save}/${save_name}"
   subdir: "."
 
 

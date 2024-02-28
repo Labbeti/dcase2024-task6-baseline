@@ -1,4 +1,4 @@
 # @package path
 
 data: "data"
-logs: "logs"
+save: "logs"

@@ -5,16 +5,15 @@ defaults:
   - model: trans_decoder
   - path: local
   - tokenizer: word
-  - trainer: fit
+  - trainer: fit_test
   - hydra: custom
   - _self_
 
 # --- Common args
 datetime: ${now:%Y.%m.%d-%H.%M.%S}  # str
-log_name: "${hydra:job.name}-${datetime}"
+save_name: "${hydra:job.name}-${datetime}"
 seed: 42  # int | null
 verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
-
 
 # --- Train args
 ckpt_path: null  # str | null
@@ -24,6 +23,6 @@ ckpt:
 
 log:
   _target_: "lightning.pytorch.loggers.tensorboard.TensorBoardLogger"
-  save_dir: ${path.logs}
-  name: ${datetime}
-  version: "tensorboard"
+  save_dir: ${path.save}/${hydra:sweep.dir}/${hydra:sweep.subdir}
+  name: "."
+  version: "."
