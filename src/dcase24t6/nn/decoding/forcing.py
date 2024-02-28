@@ -11,12 +11,13 @@ from dcase24t6.nn.decoding.common import AACDecoder
 
 def teacher_forcing(
     decoder: AACDecoder,
+    *,
     pad_id: int,
     frame_embs: Tensor,
     frame_embs_pad_mask: Tensor,
     caps_in: Tensor,
     caps_in_pad_mask: Optional[Tensor] = None,
-    caps_in_sq_mask: Optional[Tensor] = None,
+    caps_in_attn_mask: Optional[Tensor] = None,
 ) -> Tensor:
     """Compute logits using previous references tokens.
 
@@ -27,7 +28,7 @@ def teacher_forcing(
     :param caps_in: (bsize, caps_size) or (bsize, caps_size, caps_emb_size)
     :param caps_in_pad_mask: (bsize, caps_size) or None.
         If None, this mask will be inferred from caps_in.
-    :param caps_in_sq_mask: (caps_size, caps_size) or None.
+    :param caps_in_attn_mask: (caps_size, caps_size) or None.
         If None, this mask will be a batch of upper triangular matrix of -inf, which avoid seeing the future tokens.
     :returns: (max_pred_size, bsize, vocab_size)
     """
@@ -41,9 +42,11 @@ def teacher_forcing(
             )
         caps_in_pad_mask = tensor_to_pad_mask(caps_in, pad_value=pad_id)
 
-    if caps_in_sq_mask is None:
+    if caps_in_attn_mask is None:
         caps_size = caps_in.shape[1]
-        caps_in_sq_mask = generate_square_subsequent_mask(caps_size, caps_in.device)
+        caps_in_attn_mask = generate_square_subsequent_mask(
+            caps_size, device=caps_in.device
+        )
 
     if not caps_in.is_floating_point():
         caps_in = caps_in.permute(1, 0)
@@ -51,11 +54,12 @@ def teacher_forcing(
         caps_in = caps_in.permute(1, 0, 2)
 
     logits = decoder(
-        frame_embs,
-        frame_embs_pad_mask,
-        caps_in,
-        caps_in_pad_mask,
-        caps_in_sq_mask,
+        frame_embs=frame_embs,
+        frame_embs_attn_mask=None,
+        frame_embs_pad_mask=frame_embs_pad_mask,
+        caps_in=caps_in,
+        caps_in_attn_mask=caps_in_attn_mask,
+        caps_in_pad_mask=caps_in_pad_mask,
     )
 
     # permute: (caps_size, bsize, vocab_size) -> (bsize, vocab_size, caps_size)

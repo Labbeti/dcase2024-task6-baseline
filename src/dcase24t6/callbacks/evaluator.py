@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import logging
 from pathlib import Path
 from typing import Any, Literal
 
+import yaml
 from aac_metrics.classes.evaluate import Evaluate
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks.callback import Callback
 from torchoutil.nn.functional import move_to_rec
 
 from dcase24t6.utils.collections import dict_list_to_list_dict
+
+logger = logging.getLogger(__name__)
 
 
 class Evaluator(Callback):
@@ -99,10 +103,7 @@ class Evaluator(Callback):
         stage_results = [
             result for result in self.all_results if result["stage"] == stage
         ]
-        full_names = [
-            "{dataset}_{subset}_{dataloader_idx}".format(**result)
-            for result in stage_results
-        ]
+        full_names = ["{dataset}_{subset}".format(**result) for result in stage_results]
         uniq_full_names = dict.fromkeys(full_names)
 
         for uniq_name in uniq_full_names:
@@ -111,11 +112,18 @@ class Evaluator(Callback):
                 for name, result in zip(full_names, stage_results)
                 if uniq_name == name
             ]
-            candidates = [result["candidate"] for result in dataset_results]
+            try:
+                candidates = [result["candidates"] for result in dataset_results]
+            except KeyError as err:
+                # breakpoint()
+                raise err
             mult_references = [result["mult_references"] for result in dataset_results]
             corpus_scores, sentences_scores = self.evaluate(
                 uniq_name, candidates, mult_references
             )
+
+            if stage == "test":
+                logger.info(f"{yaml.dump(corpus_scores, sort_keys=False)}")
 
     def evaluate(
         self,

@@ -154,7 +154,7 @@ class TransDecoderModel(AACModel):
 
         return loss
 
-    def validation_step(self, batch: ValBatch) -> None:
+    def validation_step(self, batch: ValBatch) -> dict[str, Tensor]:
         audio = batch["frame_embs"]
         audio_shape = batch["frame_embs_shape"]
         mult_captions = batch["mult_captions"]
@@ -186,6 +186,12 @@ class TransDecoderModel(AACModel):
 
         loss = masked_mean(losses, is_valid_caption)
         self.log("val/loss", loss, batch_size=bsize)
+
+        decoded = self.decode_audio(encoded, method="generate")
+        outputs = {
+            "loss": losses,
+        } | decoded
+        return outputs
 
     def test_step(self, batch: TestBatch) -> dict[str, Any]:
         audio = batch["frame_embs"]
@@ -220,10 +226,11 @@ class TransDecoderModel(AACModel):
         loss = masked_mean(losses, is_valid_caption)
         self.log("test/loss", loss, batch_size=bsize)
 
-        output = {
+        decoded = self.decode_audio(encoded, method="generate")
+        outputs = {
             "loss": losses,
-        }
-        return output
+        } | decoded
+        return outputs
 
     def forward(
         self,
@@ -247,14 +254,6 @@ class TransDecoderModel(AACModel):
         return loss
 
     def val_criterion(self, logits: Tensor, target: Tensor) -> Tensor:
-        loss = F.cross_entropy(
-            logits,
-            target,
-            ignore_index=self.tokenizer.pad_token_id,
-        )
-        return loss
-
-    def test_criterion(self, logits: Tensor, target: Tensor) -> Tensor:
         losses = F.cross_entropy(
             logits,
             target,
@@ -264,6 +263,9 @@ class TransDecoderModel(AACModel):
         # We apply mean only on second dim to get a tensor of shape (bsize,)
         losses = masked_mean(losses, target != self.tokenizer.pad_token_id, dim=1)
         return losses
+
+    def test_criterion(self, logits: Tensor, target: Tensor) -> Tensor:
+        return self.val_criterion(logits, target)
 
     def input_emb_layer(self, ids: Tensor) -> Tensor:
         return self.decoder.emb_layer(ids)
@@ -362,10 +364,11 @@ class TransDecoderModel(AACModel):
                 outs = outs._asdict()
 
                 # Decode predictions ids to sentences
-                for name in outs.keys():
-                    if "prediction" not in name:
+                keys = list(outs.keys())
+                for key in keys:
+                    if "prediction" not in key:
                         continue
-                    preds: Tensor = outs[name]
+                    preds: Tensor = outs[key]
                     if preds.ndim == 2:
                         cands = self.tokenizer.decode_batch(preds.tolist())
                     elif preds.ndim == 3:
@@ -377,8 +380,8 @@ class TransDecoderModel(AACModel):
                         raise ValueError(
                             f"Invalid shape {preds.ndim=}. (expected one of {(2, 3)})"
                         )
-                    new_name = name.replace("prediction", "candidate")
-                    outs[new_name] = cands
+                    new_key = key.replace("prediction", "candidate")
+                    outs[new_key] = cands
 
             case method:
                 DECODE_METHODS = ("forcing", "greedy", "generate", "auto")

@@ -1,6 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
+
+os.environ["MKL_NUM_THREADS"] = "2"
+os.environ["NUMEXPR_NUM_THREADS"] = "2"
+os.environ["OMP_NUM_THREADS"] = "2"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+os.environ["TRANSFORMERS_OFFLINE"] = "FALSE"
+os.environ["HF_HUB_OFFLINE"] = "FALSE"
+
 import logging
 import os
 import os.path as osp

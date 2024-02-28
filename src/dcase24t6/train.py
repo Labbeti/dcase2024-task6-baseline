@@ -1,6 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import os
+
+os.environ["MKL_NUM_THREADS"] = "2"
+os.environ["NUMEXPR_NUM_THREADS"] = "2"
+os.environ["OMP_NUM_THREADS"] = "2"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+os.environ["TRANSFORMERS_OFFLINE"] = "TRUE"
+os.environ["HF_HUB_OFFLINE"] = "TRUE"
+
 import logging
 import os.path as osp
 
@@ -11,6 +21,7 @@ from lightning.pytorch.callbacks import ModelSummary
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 
+from dcase24t6.callbacks.evaluator import Evaluator
 from dcase24t6.callbacks.opcounter import OpCounter
 
 logger = logging.getLogger(__name__)
@@ -47,13 +58,13 @@ def train(cfg: DictConfig) -> None | float:
 
 def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     checkpoint = instantiate(cfg.ckpt)
-    # evaluator = Evaluator(cfg.logdir)
+    evaluator = Evaluator(cfg.log.save_dir)
     model_summary = ModelSummary(max_depth=1)
     opcounter = OpCounter(verbose=cfg.verbose)
 
     callbacks: dict[str, Callback] = {
         "checkpoint": checkpoint,
-        # "evaluator": evaluator,
+        "evaluator": evaluator,
         "model_summary": model_summary,
         "opcounter": opcounter,
     }

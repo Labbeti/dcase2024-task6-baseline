@@ -29,6 +29,7 @@ class GenerateOutput(NamedTuple):
 @torch.no_grad()
 def generate(
     decoder: AACDecoder,
+    *,
     pad_id: int,
     bos_id: Union[int, Tensor],
     eos_id: int,
@@ -91,7 +92,6 @@ def generate(
     del bos_id
 
     bod_ids = repeat_interleave_nd(bos_ids, beam_size)
-    # TODO: check if nothing is broken here
 
     # frame_embs: (bsize*beam_size, frame_emb_size, n_frames) -> (n_frames, bsize*beam_size, frame_emb_size)
     frame_embs = frame_embs.permute(2, 0, 1)
@@ -113,7 +113,7 @@ def generate(
     global_avg_lprobs = torch.zeros((bsize * beam_size,), **fkwds)
 
     arange = torch.arange(bsize, **ikwds)
-    caps_in_sq_mask = generate_square_subsequent_mask(max_pred_size, device)
+    caps_in_attn_mask = generate_square_subsequent_mask(max_pred_size, device=device)
     if forbid_rep_mask is None:
         forbid_rep_mask = torch.zeros((vocab_size,), **bkwds)
     use_forbid_rep = forbid_rep_mask.eq(True).any().item()
@@ -122,14 +122,15 @@ def generate(
 
     for i in range(max_pred_size):
         preds_in_i = preds[:, : i + 1].transpose(0, 1)
-        caps_in_sq_mask_i = caps_in_sq_mask[: i + 1, : i + 1]
+        caps_in_attn_mask_i = caps_in_attn_mask[: i + 1, : i + 1]
 
         full_logits_i = decoder(
-            frame_embs=frame_embs.contiguous(),
-            frame_embs_pad_mask=frame_embs_pad_mask.contiguous(),
-            caps_in=preds_in_i.contiguous(),
+            frame_embs=frame_embs,
+            frame_embs_attn_mask=None,
+            frame_embs_pad_mask=frame_embs_pad_mask,
+            caps_in=preds_in_i,
+            caps_in_attn_mask=caps_in_attn_mask_i,
             caps_in_pad_mask=None,
-            caps_in_sq_mask=caps_in_sq_mask_i.contiguous(),
         )
         # full_logits_i shape: (i+1, cur_size, vocab_size)
         logits_i = full_logits_i[-1]

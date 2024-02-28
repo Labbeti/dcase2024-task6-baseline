@@ -5,6 +5,7 @@ import logging
 import math
 from typing import Callable, Optional, Union
 
+import torch
 from torch import Tensor, nn
 
 from dcase24t6.nn.functional import get_activation_fn
@@ -65,22 +66,38 @@ class AACTransformerDecoder(nn.TransformerDecoder):
     def forward(
         self,
         frame_embs: Tensor,
+        frame_embs_attn_mask: Optional[Tensor],
         frame_embs_pad_mask: Optional[Tensor],
         caps_in: Tensor,
+        caps_in_attn_mask: Optional[Tensor],
         caps_in_pad_mask: Optional[Tensor],
-        caps_in_sq_mask: Optional[Tensor],
     ) -> Tensor:
         """
         :param frame_embs: (n_frames, bsize, d_model)
-        :param frame_embs_pad_mask: (bsize, n_frames) or None
         :param caps_in: (caps_in_len, bsize) or (caps_in_len, bsize, d_model)
+        :param frame_embs_attn_mask: (caps_in_len, n_frames) or None
+        :param caps_in_attn_mask: (caps_in_len, caps_in_len)
+        :param frame_embs_pad_mask: (bsize, n_frames) or None
         :param caps_in_pad_mask: (caps_in_len, bsize) or None
-        :param caps_in_sq_mask: (caps_in_len, caps_in_len)
         :returns: logits of shape (caps_in_len, bsize, vocab_size)
         """
         self._check_args(
-            frame_embs, frame_embs_pad_mask, caps_in, caps_in_pad_mask, caps_in_sq_mask
+            frame_embs,
+            frame_embs_pad_mask,
+            frame_embs_attn_mask,
+            caps_in,
+            caps_in_pad_mask,
+            caps_in_attn_mask,
         )
+        caps_in_len = caps_in.shape[0]
+        num_frames = frame_embs.shape[0]
+
+        if frame_embs_pad_mask is not None and frame_embs_attn_mask is None:
+            frame_embs_attn_mask = torch.zeros(
+                (caps_in_len, num_frames),
+                dtype=torch.bool,
+                device=frame_embs.device,
+            )
 
         if not caps_in.is_floating_point():
             caps_in = self.emb_layer(caps_in)
@@ -93,10 +110,10 @@ class AACTransformerDecoder(nn.TransformerDecoder):
         tok_embs_outs = super().forward(
             memory=frame_embs,
             memory_key_padding_mask=frame_embs_pad_mask,
-            memory_mask=None,
+            memory_mask=frame_embs_attn_mask,
             tgt=caps_in,
             tgt_key_padding_mask=caps_in_pad_mask,
-            tgt_mask=caps_in_sq_mask,
+            tgt_mask=caps_in_attn_mask,
         )
         tok_logits_out = self.classifier(tok_embs_outs)
 
@@ -106,9 +123,10 @@ class AACTransformerDecoder(nn.TransformerDecoder):
         self,
         frame_embs: Tensor,
         frame_embs_pad_mask: Optional[Tensor],
+        frame_embs_attn_mask: Optional[Tensor],
         caps_in: Tensor,
         caps_in_pad_mask: Optional[Tensor],
-        caps_in_sq_mask: Optional[Tensor],
+        caps_in_attn_mask: Optional[Tensor],
     ) -> None:
         if frame_embs.ndim != 3:
             raise ValueError(f"Invalid argument ndim {frame_embs.ndim=} (expected 3)")
@@ -125,12 +143,17 @@ class AACTransformerDecoder(nn.TransformerDecoder):
                 f"Invalid argument ndim {frame_embs_pad_mask.ndim=} (expected 2)"
             )
 
+        if frame_embs_attn_mask is not None and frame_embs_attn_mask.ndim != 2:
+            raise ValueError(
+                f"Invalid argument ndim {frame_embs_attn_mask.ndim=} (expected 2)"
+            )
+
         if caps_in_pad_mask is not None and caps_in_pad_mask.ndim != 2:
             raise ValueError(
                 f"Invalid argument ndim {caps_in_pad_mask.ndim=} (expected 2)"
             )
 
-        if caps_in_sq_mask is not None and caps_in_sq_mask.ndim != 2:
+        if caps_in_attn_mask is not None and caps_in_attn_mask.ndim != 2:
             raise ValueError(
-                f"Invalid argument ndim {caps_in_sq_mask.ndim=} (expected 2)"
+                f"Invalid argument ndim {caps_in_attn_mask.ndim=} (expected 2)"
             )
