@@ -1,0 +1,8 @@
+# @package _global_
+
+trainer:
+  max_epochs: 3
+  limit_predict_batches: 3
+  limit_test_batches: 3
+  limit_train_batches: 3
+  limit_val_batches: 3

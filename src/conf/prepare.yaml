@@ -8,7 +8,7 @@ defaults:
 
 # --- Common args
 datetime: ${now:%Y.%m.%d-%H.%M.%S}  # str
-log_name: "${hydra:job.name}-${datetime}"
+save_name: "${hydra:job.name}-${datetime}"
 seed: 42  # int | null
 verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 
