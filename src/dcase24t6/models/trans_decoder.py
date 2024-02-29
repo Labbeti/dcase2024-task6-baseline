@@ -138,8 +138,9 @@ class TransDecoderModel(AACModel):
         }
         optimizer = AdamW(params, **optimizer_args)
 
-        num_steps = self.hparams["scheduler_num_steps"]
+        num_steps = self.hparams["sched_num_steps"]
         scheduler = CosDecayScheduler(optimizer, num_steps)
+
         return [optimizer], [scheduler]
 
     def training_step(self, batch: TrainBatch) -> Tensor:

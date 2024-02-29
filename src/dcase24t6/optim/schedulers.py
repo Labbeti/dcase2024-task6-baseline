@@ -3,7 +3,6 @@
 
 import logging
 import math
-from types import EllipsisType
 
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim.optimizer import Optimizer
@@ -16,14 +15,12 @@ class CosDecayScheduler(LambdaLR):
         self,
         optimizer: Optimizer,
         n_steps: int,
-        last_epoch: int | EllipsisType = ...,
-        verbose: bool | EllipsisType = ...,
+        last_epoch: int = -1,
     ) -> None:
         super().__init__(
             optimizer=optimizer,
             lr_lambda=CosDecayRule(n_steps),
-            last_epoch=last_epoch,  # type: ignore
-            verbose=verbose,  # type: ignore
+            last_epoch=last_epoch,
         )
 
 
