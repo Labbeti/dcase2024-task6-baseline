@@ -2,4 +2,5 @@
 
 _target_: "dcase24t6.models.trans_decoder.TransDecoderModel"
 
+sched_num_steps: ${trainer.max_epochs}
 verbose: ${verbose}

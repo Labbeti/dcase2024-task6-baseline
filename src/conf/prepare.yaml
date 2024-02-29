@@ -1,7 +1,7 @@
 # @package _global_
 
 defaults:
-  - pre_transform: cnext
+  - pre_process: cnext
   - path: local
   - hydra: custom
   - _self_
@@ -17,7 +17,7 @@ verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 subsets: ["dev", "val", "eval", "dcase_aac_test", "dcase_aac_analysis"]
 force: false
 
-hdf_pattern: "{dataset}_{subset}_${hydra:runtime.choices.pre_transform}.hdf"  # str
+hdf_pattern: "{dataset}_{subset}_${hydra:runtime.choices.pre_process}.hdf"  # str
 overwrite: false  # bool
 batch_size: 32  # int
 num_workers: "auto"  # int | "auto"

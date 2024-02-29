@@ -24,6 +24,7 @@ from dcase24t6.nn.decoding.beam import generate
 from dcase24t6.nn.decoding.common import get_forbid_rep_mask_content_words
 from dcase24t6.nn.decoding.forcing import teacher_forcing
 from dcase24t6.nn.decoding.greedy import greedy_search
+from dcase24t6.optim.schedulers import CosDecayScheduler
 from dcase24t6.optim.utils import create_params_groups
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
 
@@ -39,10 +40,21 @@ class TrainBatch(Batch):
 
 class ValBatch(Batch):
     mult_captions: Tensor
+    mult_references: list[list[str]]
+    dataset: str
+    subset: str
+    fname: str
 
 
 TestBatch = ValBatch
-PredictBatch = ValBatch
+
+
+class PredictBatch(Batch):
+    dataset: str
+    subset: str
+    fname: str
+
+
 ModelOutput = dict[str, Tensor]
 
 
@@ -71,6 +83,7 @@ class TransDecoderModel(AACModel):
         betas: tuple[float, float] = (0.9, 0.999),
         eps: float = 1e-8,
         weight_decay: float = 2.0,
+        sched_num_steps: int = 400,
         # Other args
         verbose: int = 0,
     ) -> None:
@@ -110,6 +123,10 @@ class TransDecoderModel(AACModel):
             self.register_buffer("forbid_rep_mask", forbid_rep_mask)
             self.forbid_rep_mask: Optional[Tensor]
 
+        if stage in ("fit", None):
+            batch = next(iter(self.datamodule.train_dataloader()))
+            self.example_input_array = {"batch": batch}
+
     def configure_optimizers(self) -> OptimizerLRScheduler:
         if self.hparams["custom_weight_decay"]:
             params = create_params_groups(self, self.hparams["weight_decay"])
@@ -120,7 +137,10 @@ class TransDecoderModel(AACModel):
             name: self.hparams[name] for name in ("lr", "betas", "eps", "weight_decay")
         }
         optimizer = AdamW(params, **optimizer_args)
-        return optimizer
+
+        num_steps = self.hparams["scheduler_num_steps"]
+        scheduler = CosDecayScheduler(optimizer, num_steps)
+        return [optimizer], [scheduler]
 
     def training_step(self, batch: TrainBatch) -> Tensor:
         audio = batch["frame_embs"]
@@ -150,7 +170,7 @@ class TransDecoderModel(AACModel):
         logits = decoded["logits"]
 
         loss = self.train_criterion(logits, captions_out)
-        self.log("train/loss", loss, batch_size=bsize)
+        self.log("train/loss", loss, batch_size=bsize, prog_bar=True)
 
         return loss
 
@@ -185,7 +205,7 @@ class TransDecoderModel(AACModel):
             losses[:, i] = losses_i
 
         loss = masked_mean(losses, is_valid_caption)
-        self.log("val/loss", loss, batch_size=bsize)
+        self.log("val/loss", loss, batch_size=bsize, prog_bar=True)
 
         decoded = self.decode_audio(encoded, method="generate")
         outputs = {
@@ -224,7 +244,7 @@ class TransDecoderModel(AACModel):
             losses[:, i] = losses_i
 
         loss = masked_mean(losses, is_valid_caption)
-        self.log("test/loss", loss, batch_size=bsize)
+        self.log("test/loss", loss, batch_size=bsize, prog_bar=True)
 
         decoded = self.decode_audio(encoded, method="generate")
         outputs = {

@@ -3,6 +3,7 @@
 
 from typing import Optional
 
+import torch
 from torch import Tensor
 from torchoutil import generate_square_subsequent_mask, tensor_to_pad_mask
 
@@ -45,7 +46,9 @@ def teacher_forcing(
     if caps_in_attn_mask is None:
         caps_size = caps_in.shape[1]
         caps_in_attn_mask = generate_square_subsequent_mask(
-            caps_size, device=caps_in.device
+            caps_size,
+            device=caps_in.device,
+            dtype=torch.bool,
         )
 
     if not caps_in.is_floating_point():

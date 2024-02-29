@@ -99,6 +99,13 @@ class AACTransformerDecoder(nn.TransformerDecoder):
                 device=frame_embs.device,
             )
 
+        if caps_in_attn_mask is None and caps_in_pad_mask is not None:
+            caps_in_attn_mask = torch.zeros(
+                (caps_in_len, caps_in_len),
+                dtype=torch.bool,
+                device=caps_in.device,
+            )
+
         if not caps_in.is_floating_point():
             caps_in = self.emb_layer(caps_in)
 
@@ -117,6 +124,7 @@ class AACTransformerDecoder(nn.TransformerDecoder):
         )
         tok_logits_out = self.classifier(tok_embs_outs)
 
+        # breakpoint()
         return tok_logits_out
 
     def _check_args(

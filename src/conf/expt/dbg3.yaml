@@ -1,0 +1,11 @@
+# @package _global_
+
+trainer:
+  max_epochs: 30
+  limit_predict_batches: 0
+  limit_test_batches: null
+  limit_train_batches: null
+  limit_val_batches: null
+
+datamodule:
+  batch_size: 32

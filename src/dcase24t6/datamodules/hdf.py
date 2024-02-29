@@ -29,6 +29,10 @@ class HDFDatamodule(LightningDataModule):
         val_hdfs: str | Iterable[str] = (),
         test_hdfs: str | Iterable[str] = (),
         predict_hdfs: str | Iterable[str] = (),
+        train_batch_keys: Iterable[str] | None = None,
+        val_batch_keys: Iterable[str] | None = None,
+        test_batch_keys: Iterable[str] | None = None,
+        predict_batch_keys: Iterable[str] | None = None,
         # DataLoader args
         batch_size: int = 32,
         num_workers: int | Literal["auto"] = "auto",
@@ -68,6 +72,11 @@ class HDFDatamodule(LightningDataModule):
         self.val_hdfs = val_hdfs
         self.test_hdfs = test_hdfs
         self.predict_hdfs = predict_hdfs
+
+        self.train_batch_keys = train_batch_keys
+        self.val_batch_keys = val_batch_keys
+        self.test_batch_keys = test_batch_keys
+        self.predict_batch_keys = predict_batch_keys
 
         self.train_dataset = EmptyDataset()
         self.val_datasets = {}
@@ -124,22 +133,37 @@ class HDFDatamodule(LightningDataModule):
 
         item["captions"] = caption
         item["references"] = ref
+
+        if self.train_batch_keys is not None:
+            item = {k: item[k] for k in self.train_batch_keys}
         return item
 
     def val_transform(self, item: dict[str, Any]) -> dict[str, Any]:
-        refs = item.pop("captions")
-        captions = self.tokenizer.encode_batch(refs)
-        captions = torch.as_tensor([cap.ids for cap in captions])
-
-        item["mult_captions"] = captions
-        item["mult_references"] = refs
-        return item
+        return self._common_transform(item, self.val_batch_keys)
 
     def test_transform(self, item: dict[str, Any]) -> dict[str, Any]:
-        return self.val_transform(item)
+        return self._common_transform(item, self.test_batch_keys)
 
     def predict_transform(self, item: dict[str, Any]) -> dict[str, Any]:
-        return self.val_transform(item)
+        return self._common_transform(item, self.predict_batch_keys)
+
+    def _common_transform(
+        self,
+        item: dict[str, Any],
+        keys: Iterable[str] | None,
+    ) -> dict[str, Any]:
+        if "captions" in item:
+            refs = item.pop("captions")
+            captions = self.tokenizer.encode_batch(refs)
+            captions = torch.as_tensor([cap.ids for cap in captions])
+
+            item["mult_captions"] = captions
+            item["mult_references"] = refs
+
+        if keys is not None:
+            item = {k: item[k] for k in keys}
+
+        return item
 
     def setup_train(self) -> None:
         hdf_fnames = self.train_hdfs

@@ -2,15 +2,16 @@
 # -*- coding: utf-8 -*-
 
 from pathlib import Path
-from typing import Any, Sequence, TypeGuard
+from typing import Any, Sequence
 
 import torch
 from torch import Tensor, nn
 from torchaudio.functional import resample
 from torchoutil.nn.functional.get import get_device
 
-from dcase24t6.nn.convnext import convnext_tiny
-from dcase24t6.nn.convnext_ckpt_utils import load_cnext_state_dict
+from dcase24t6.nn.encoders.convnext import convnext_tiny
+from dcase24t6.nn.encoders.convnext_ckpt_utils import load_cnext_state_dict
+from dcase24t6.utils.type_checks import is_list_int
 
 
 class ResampleMeanCNext(nn.Module):
@@ -93,7 +94,3 @@ class ResampleMeanCNext(nn.Module):
 
         outputs = batch | model_outs
         return outputs
-
-
-def is_list_int(x: Any) -> TypeGuard[list[int]]:
-    return isinstance(x, list) and all(isinstance(xi, int) for xi in x)

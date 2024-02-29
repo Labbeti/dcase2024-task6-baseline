@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Literal
 
 import hydra
+import nltk
 from aac_datasets.datasets.clotho import Clotho
 from aac_datasets.datasets.functional.clotho import download_clotho_datasets
 from aac_metrics.download import download_metrics
@@ -41,14 +42,14 @@ def prepare(cfg: DictConfig) -> None:
     if cfg.verbose >= 1:
         logger.info(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
 
-    pre_transform = instantiate(cfg.pre_transform)
+    pre_process = instantiate(cfg.pre_process)
 
     return prepare_data_metrics_models(
-        dataroot=cfg.path.data,
+        dataroot=cfg.path.data_root,
         subsets=cfg.subsets,
         force=cfg.force,
         hdf_pattern=cfg.hdf_pattern,
-        pre_transform=pre_transform,
+        pre_process=pre_process,
         overwrite=cfg.overwrite,
         batch_size=cfg.batch_size,
         num_workers=cfg.num_workers,
@@ -61,7 +62,7 @@ def prepare_data_metrics_models(
     subsets: Iterable[str] = (),
     force: bool = False,
     hdf_pattern: str = "{dataset}_{subset}.hdf",
-    pre_transform: Callable | None = None,
+    pre_process: Callable | None = None,
     overwrite: bool = False,
     batch_size: int = 32,
     num_workers: int | Literal["auto"] = "auto",
@@ -70,6 +71,7 @@ def prepare_data_metrics_models(
     dataroot = Path(dataroot).resolve()
     subsets = list(subsets)
 
+    nltk.download("stopwords")
     download_metrics(verbose=verbose)
 
     os.makedirs(dataroot, exist_ok=True)
@@ -106,7 +108,7 @@ def prepare_data_metrics_models(
         pack_to_hdf(
             dataset=dataset,
             hdf_fpath=hdf_fpath,
-            pre_transform=pre_transform,
+            pre_transform=pre_process,
             overwrite=overwrite,
             batch_size=batch_size,
             num_workers=num_workers,

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from typing import Optional, Protocol
+from typing import Mapping, Optional, Protocol
 
 import torch
 from nltk.corpus import stopwords
@@ -39,18 +39,18 @@ class AACDecoder(Protocol):
 
 def get_forbid_rep_mask_content_words(
     vocab_size: int,
-    token_to_id: dict[str, int],
+    token_to_id: Mapping[str, int],
     device: str | torch.device | None,
     verbose: int = 0,
     lang: str = "english",
 ) -> Tensor:
-    forbid_mask = torch.ones((vocab_size,), dtype=torch.bool, device=device)
+    forbid_rep_mask = torch.ones((vocab_size,), dtype=torch.bool, device=device)
     stopwords_set = set(stopwords.words(lang))
     stopwords_in_vocab = {word for word in stopwords_set if word in token_to_id}
 
     for token in stopwords_in_vocab:
         id_ = token_to_id[token]
-        forbid_mask[id_] = False
+        forbid_rep_mask[id_] = False
 
     if verbose >= 2:
         logger.debug(
@@ -65,13 +65,11 @@ def get_forbid_rep_mask_content_words(
             f"{len(stopwords_not_in_vocab)}/{len(stopwords_set)} stopwords NOT found in vocab:"
         )
         logger.debug(f"{stopwords_not_in_vocab}")
-
-    if verbose >= 1:
-        logger.info(f"Found {len(stopwords_in_vocab)}/{len(stopwords_set)} stopwords.")
+        logger.debug(f"Found {len(stopwords_in_vocab)}/{len(stopwords_set)} stopwords.")
 
     if verbose >= 1:
         logger.info(
-            f"Forbid mask up to {forbid_mask.sum().item()}/{vocab_size} tokens during testing."
+            f"Forbid repetition mask {forbid_rep_mask.sum().item()}/{vocab_size} tokens during testing."
         )
 
-    return forbid_mask
+    return forbid_rep_mask

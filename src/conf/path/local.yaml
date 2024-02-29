@@ -1,4 +1,4 @@
 # @package path
 
-data: "data"
-save: "logs"
+data_root: "./data"
+save_root: "./logs"

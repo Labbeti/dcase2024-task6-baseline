@@ -1,3 +1,0 @@
-# @package tokenizer
-
-_target_: "dcase24t6.tokenization.aac_tokenizer.AACTokenizer"

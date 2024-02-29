@@ -18,7 +18,7 @@ from tokenizers.trainers import Trainer, WordLevelTrainer
 
 
 class AACTokenizer:
-    """Wrapper of tokenizers.Tokenizer to facilitate AAC development."""
+    """Wrapper of tokenizers.Tokenizer."""
 
     VERSION: ClassVar[int] = 1
 
@@ -181,6 +181,7 @@ class AACTokenizer:
     ) -> str:
         if isinstance(sequence, Encoding):
             sequence = sequence.ids
+
         decoded = self.tokenizer.decode(
             sequence, skip_special_tokens=skip_special_tokens
         )
@@ -188,13 +189,13 @@ class AACTokenizer:
 
     def decode_batch(
         self,
-        sequence: Sequence[Sequence[int]] | Sequence[Encoding],
+        sequences: Sequence[Sequence[int]] | Sequence[Encoding],
         skip_special_tokens: bool = True,
     ) -> list[str]:
-        if is_list_encoding(sequence):
-            sequence = [element.ids for element in sequence]
+        if is_list_encoding(sequences):
+            sequences = [element.ids for element in sequences]
         decoded = self.tokenizer.decode_batch(
-            sequence, skip_special_tokens=skip_special_tokens
+            sequences, skip_special_tokens=skip_special_tokens
         )
         return decoded
 

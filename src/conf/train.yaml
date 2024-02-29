@@ -4,14 +4,13 @@ defaults:
   - datamodule: hdf
   - model: trans_decoder
   - path: local
-  - tokenizer: word
-  - trainer: fit_test
   - hydra: custom
   - _self_
 
 # --- Common args
 datetime: ${now:%Y.%m.%d-%H.%M.%S}  # str
 save_name: "${hydra:job.name}-${datetime}"
+save_dir: "${hydra:sweep.dir}/${hydra:sweep.subdir}"
 seed: 42  # int | null
 verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 
@@ -20,9 +19,49 @@ ckpt_path: null  # str | null
 
 ckpt:
   _target_: "lightning.pytorch.callbacks.model_checkpoint.ModelCheckpoint"
+  monitor: "val/loss"
+  mode: "min"
+  filename: "{epoch:03d}-{step:06d}-mode_${ckpt.mode}-{${ckpt.monitor}:.4f}"
 
 log:
   _target_: "lightning.pytorch.loggers.tensorboard.TensorBoardLogger"
-  save_dir: ${path.save}/${hydra:sweep.dir}/${hydra:sweep.subdir}
+  save_dir: "${save_dir}"
   name: "."
   version: "."
+
+tokenizer:
+  _target_: "dcase24t6.tokenization.aac_tokenizer.AACTokenizer"
+
+trainer:
+  _target_: "lightning.pytorch.trainer.Trainer"
+
+  accelerator: "gpu"
+  accumulate_grad_batches: 1
+  benchmark: false
+  detect_anomaly: false
+  deterministic: false
+  devices: 1
+  enable_checkpointing: true
+  enable_model_summary: false
+  fast_dev_run: false
+  gradient_clip_algorithm: "norm"
+  gradient_clip_val: 1
+  limit_predict_batches: null
+  limit_test_batches: null
+  limit_train_batches: null
+  limit_val_batches: null
+  log_every_n_steps: 5
+  max_epochs: 400
+  max_steps: -1
+  num_nodes: 1
+  num_sanity_val_steps: 0
+  precision: 32
+  reload_dataloaders_every_n_epochs: 0
+  val_check_interval: null
+
+evaluator:
+  _target_: "dcase24t6.callbacks.evaluator.Evaluator"
+  save_dir: "${save_dir}"
+  val_metrics: ["cider_d", "vocab"]
+  test_metrics: "all"
+  accepted_output_keys: null

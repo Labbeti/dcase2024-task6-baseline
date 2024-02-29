@@ -2,11 +2,19 @@
 
 _target_: "dcase24t6.datamodules.hdf.HDFDatamodule"
 
-root: ${path.data}
+root: ${path.data_root}
+
 train_hdfs: "clotho_dev_cnext.hdf"
 val_hdfs: "clotho_val_cnext.hdf"
 test_hdfs: "clotho_eval_cnext.hdf"
 predict_hdfs: ["clotho_dcase_aac_analysis_cnext.hdf", "clotho_dcase_aac_test_cnext.hdf"]
+
+train_batch_keys: ["frame_embs", "frame_embs_shape", "captions"]
+val_batch_keys: ["frame_embs", "frame_embs_shape", "dataset", "subset", "fname", "mult_captions", "mult_references"]
+test_batch_keys: ["frame_embs", "frame_embs_shape", "dataset", "subset", "fname", "mult_captions", "mult_references"]
+predict_batch_keys: ["frame_embs", "frame_embs_shape", "dataset", "subset", "fname"]
+
+# DataLoader args
 batch_size: 32
 num_workers: "auto"
 pin_memory: true
