@@ -123,8 +123,12 @@ class TransDecoderModel(AACModel):
             self.register_buffer("forbid_rep_mask", forbid_rep_mask)
             self.forbid_rep_mask: Optional[Tensor]
 
-        if stage in ("fit", None):
-            batch = next(iter(self.datamodule.train_dataloader()))
+        if stage in ("fit", None) and "batch_size" in self.datamodule.hparams:
+            batch_size = self.datamodule.hparams["batch_size"]
+            self.datamodule.hparams["batch_size"] = 1
+            loader = self.datamodule.train_dataloader()
+            self.datamodule.hparams["batch_size"] = batch_size
+            batch = next(iter(loader))
             self.example_input_array = {"batch": batch}
 
     def configure_optimizers(self) -> OptimizerLRScheduler:

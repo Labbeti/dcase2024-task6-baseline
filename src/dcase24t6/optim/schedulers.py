@@ -7,7 +7,7 @@ import math
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim.optimizer import Optimizer
 
-logger = logging.getLogger(__name__)
+pylog = logging.getLogger(__name__)
 
 
 class CosDecayScheduler(LambdaLR):
@@ -32,7 +32,7 @@ class CosDecayRule:
                 f"Invalid argument {n_steps=} < 0 in {self.__class__.__name__}."
             )
         elif n_steps == 0:
-            logger.warning(
+            pylog.warning(
                 f"Replacing {n_steps=} by n_steps=1 in {self.__class__.__name__}."
             )
             n_steps = max(n_steps, 1)

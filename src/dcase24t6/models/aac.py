@@ -5,11 +5,11 @@ import logging
 from typing import Iterable, Mapping
 
 import torch
-from lightning import LightningDataModule, LightningModule
+from lightning import LightningDataModule, LightningModule, Trainer
 
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
 
-logger = logging.getLogger(__name__)
+pylog = logging.getLogger(__name__)
 
 
 class AACModel(LightningModule):
@@ -38,7 +38,7 @@ class AACModel(LightningModule):
                 "Cannot use property '.tokenizer' with a model that does not have any tokenizers."
             )
         if len(self.tokenizers) > 1:
-            logger.warning(
+            pylog.warning(
                 f"You are using property '.tokenizer' but this model has more than 1 tokenizer. (found {len(self.tokenizers)} tokenizers)"
             )
         tokenizer = next(iter(self.tokenizers.values()))
@@ -68,4 +68,8 @@ def has_trainer(plm: LightningModule) -> bool:
 
 
 def has_datamodule(plm: LightningModule) -> bool:
-    return plm.trainer is not None and plm.trainer.datamodule is not None  # type: ignore
+    return has_trainer(plm) and trainer_has_datamodule(plm.trainer)
+
+
+def trainer_has_datamodule(trainer: Trainer) -> bool:
+    return trainer.datamodule is not None  # type: ignore

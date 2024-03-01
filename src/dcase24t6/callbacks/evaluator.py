@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import csv
 import logging
 import re
 from pathlib import Path
@@ -11,14 +10,13 @@ import yaml
 from aac_metrics.classes.evaluate import Evaluate
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks.callback import Callback
-from lightning.pytorch.core.saving import save_hparams_to_yaml
-from torch import Tensor
 from torchoutil.nn.functional import move_to_rec
 
 from dcase24t6.utils.collections import dict_list_to_list_dict
 from dcase24t6.utils.dcase import export_to_csv_for_dcase_aac
+from dcase24t6.utils.saving import save_to_csv, save_to_yaml, to_builtin
 
-logger = logging.getLogger(__name__)
+pylog = logging.getLogger(__name__)
 
 
 EvalStage = Literal["val", "test", "predict"]
@@ -174,7 +172,7 @@ class Evaluator(Callback):
 
         REQUIRED_KEYS = ("dataset", "subset", "fname", "candidates")
         if not all(key in result for result in stage_results for key in REQUIRED_KEYS):
-            logger.info(
+            pylog.info(
                 f"Skipping stage results {stage} because it is missing required output keys."
             )
             return None
@@ -217,7 +215,7 @@ class Evaluator(Callback):
                     self._save_outputs(dataset_results, stage, dataset_name)
 
                 case invalid:
-                    logger.warning(
+                    pylog.warning(
                         f"Unknown stage '{invalid}'. (expected one of {EVAL_STAGES})"
                     )
 
@@ -234,12 +232,10 @@ class Evaluator(Callback):
             candidates, mult_references
         )
         corpus_scores = {
-            f"{stage}/{dataset_name}.{k}": _tensor_to_builtin(v)
+            f"{stage}/{dataset_name}.{k}": to_builtin(v)
             for k, v in corpus_scores.items()
         }
-        sentences_scores = {
-            k: _tensor_to_builtin(v) for k, v in sentences_scores.items()
-        }
+        sentences_scores = {k: to_builtin(v) for k, v in sentences_scores.items()}
         return corpus_scores, sentences_scores
 
     def _save_results(
@@ -251,17 +247,23 @@ class Evaluator(Callback):
         stage: EvalStage,
         dataset_name: str,
     ) -> None:
-        logger.info(
+        pylog.info(
             f"Metrics results for {stage} at epoch {pl_module.current_epoch}:\n{yaml.dump(corpus_scores, sort_keys=False)}"
         )
         for pl_logger in pl_module.loggers:
-            pl_logger.log_metrics(corpus_scores)
+            pl_logger.log_metrics(corpus_scores)  # type: ignore
 
         scores_fname = self.scores_fname.format(stage=stage, dataset_name=dataset_name)
         scores_fpath = self.save_dir.joinpath(scores_fname)
-        save_hparams_to_yaml(scores_fpath, corpus_scores)
+        save_to_yaml(
+            scores_fpath,
+            corpus_scores,
+            resolve=False,
+            to_builtins=True,
+            overwrite=False,
+        )
 
-        sentences_scores_lst = dict_list_to_list_dict(sentences_scores)
+        sentences_scores_lst = dict_list_to_list_dict(sentences_scores)  # type: ignore
         rows = [
             result | scores
             for result, scores in zip(dataset_results, sentences_scores_lst)
@@ -274,17 +276,12 @@ class Evaluator(Callback):
             }
             for row in rows
         ]
-        rows = [{k: _tensor_to_builtin(v) for k, v in row.items()} for row in rows]
-        fieldnames = rows[0].keys()
 
         outputs_fname = self.outputs_fname.format(
             stage=stage, dataset_name=dataset_name
         )
         outputs_fpath = self.save_dir.joinpath(outputs_fname)
-        with open(outputs_fpath, "w") as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(rows)
+        save_to_csv(rows, outputs_fpath, overwrite=False, to_builtins=True)
 
     def _save_outputs(
         self,
@@ -304,12 +301,3 @@ class Evaluator(Callback):
             fnames,
             candidates,
         )
-
-
-def _tensor_to_builtin(v: Any) -> Any:
-    if not isinstance(v, Tensor):
-        return v
-    elif v.ndim == 0:
-        return v.item()
-    else:
-        return v.tolist()

@@ -10,7 +10,7 @@ import torch
 from torch import Tensor
 from torchoutil.nn.functional.get import get_device
 
-logger = logging.getLogger(__name__)
+pylog = logging.getLogger(__name__)
 
 
 # Zenodo link : https://zenodo.org/record/8020843/
@@ -92,7 +92,7 @@ def load_cnext_state_dict(
 
     if verbose >= 1:
         test_map = data.get("test_mAP", "unknown")
-        logger.info(
+        pylog.info(
             f"Loading encoder weights from '{model_path}'... (with test_mAP={test_map})"
         )
 

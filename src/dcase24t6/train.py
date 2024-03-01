@@ -34,16 +34,16 @@ from lightning.pytorch.callbacks import (
     ModelCheckpoint,
     ModelSummary,
 )
-from lightning.pytorch.core.saving import save_hparams_to_yaml
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 
 from dcase24t6.callbacks.evaluator import Evaluator
-from dcase24t6.callbacks.opcounter import OpCounter
+from dcase24t6.callbacks.op_counter import OpCounter
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
 from dcase24t6.utils.job import get_git_hash
+from dcase24t6.utils.saving import save_to_yaml
 
-logger = logging.getLogger(__name__)
+pylog = logging.getLogger(__name__)
 
 
 @hydra.main(
@@ -58,7 +58,7 @@ def train(cfg: DictConfig) -> None | float:
     OmegaConf.resolve(cfg)
     OmegaConf.set_readonly(cfg, True)
     if cfg.verbose >= 1:
-        logger.info(f"Full configuration:\n{OmegaConf.to_yaml(cfg)}")
+        pylog.info(f"Full configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     # Initialize callbacks, model, etc...
     loggers: Logger | list[Logger] = instantiate(cfg.log)
@@ -91,7 +91,7 @@ def train(cfg: DictConfig) -> None | float:
         "config": OmegaConf.to_container(cfg, resolve=True),
     }
     save_stats(cfg.save_dir, tokenizer, datamodule, model, job_info)
-    logger.info(
+    pylog.info(
         f"Job results are saved in '{cfg.save_dir}'. (duration={pretty_total_duration})"
     )
 
@@ -103,7 +103,7 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
 
     evaluator: Evaluator = instantiate(cfg.evaluator)
     model_summary = ModelSummary(max_depth=1)
-    op_counter = OpCounter(verbose=cfg.verbose)
+    op_counter = OpCounter(cfg.save_dir, verbose=cfg.verbose)
     lr_monitor = LearningRateMonitor()
 
     callbacks: dict[str, Callback] = {
@@ -126,7 +126,7 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     callbacks_str = ", ".join(
         callback.__class__.__name__ for callback in callbacks.values()
     )
-    logger.info(f"Adding {len(callbacks)} callbacks: {callbacks_str}")
+    pylog.info(f"Adding {len(callbacks)} callbacks: {callbacks_str}")
 
     return callbacks
 
@@ -144,13 +144,13 @@ def save_stats(
     tokenizer.save(tok_fpath)
 
     datamodule_fpath = save_dir.joinpath("hparams_datamodule.yaml")
-    save_hparams_to_yaml(datamodule_fpath, dict(datamodule.hparams))
+    save_to_yaml(datamodule_fpath, datamodule.hparams)
 
     model_fpath = save_dir.joinpath("hparams_model.yaml")
-    save_hparams_to_yaml(model_fpath, dict(model.hparams))
+    save_to_yaml(model_fpath, model.hparams)
 
     job_info_fpath = save_dir.joinpath("job_info.yaml")
-    save_hparams_to_yaml(job_info_fpath, dict(job_info.items()))
+    save_to_yaml(job_info_fpath, job_info)
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ import torch
 from nltk.corpus import stopwords
 from torch import Tensor
 
-logger = logging.getLogger(__name__)
+pylog = logging.getLogger(__name__)
 
 
 class AACDecoder(Protocol):
@@ -53,22 +53,22 @@ def get_forbid_rep_mask_content_words(
         forbid_rep_mask[id_] = False
 
     if verbose >= 2:
-        logger.debug(
+        pylog.debug(
             f"{len(stopwords_in_vocab)}/{len(stopwords_set)} stopwords found in vocab:"
         )
-        logger.debug(f"{stopwords_in_vocab}")
+        pylog.debug(f"{stopwords_in_vocab}")
 
         stopwords_not_in_vocab = {
             word for word in stopwords_set if word not in token_to_id
         }
-        logger.debug(
+        pylog.debug(
             f"{len(stopwords_not_in_vocab)}/{len(stopwords_set)} stopwords NOT found in vocab:"
         )
-        logger.debug(f"{stopwords_not_in_vocab}")
-        logger.debug(f"Found {len(stopwords_in_vocab)}/{len(stopwords_set)} stopwords.")
+        pylog.debug(f"{stopwords_not_in_vocab}")
+        pylog.debug(f"Found {len(stopwords_in_vocab)}/{len(stopwords_set)} stopwords.")
 
     if verbose >= 1:
-        logger.info(
+        pylog.info(
             f"Forbid repetition mask {forbid_rep_mask.sum().item()}/{vocab_size} tokens during testing."
         )
 

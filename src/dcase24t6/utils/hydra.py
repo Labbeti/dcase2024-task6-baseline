@@ -7,7 +7,7 @@ import os.path as osp
 from logging import FileHandler
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+pylog = logging.getLogger(__name__)
 
 
 class CustomFileHandler(FileHandler):
@@ -29,7 +29,7 @@ class CustomFileHandler(FileHandler):
             try:
                 os.makedirs(parent_dpath, exist_ok=True)
             except PermissionError as err:
-                logger.warning(
+                pylog.warning(
                     f"Cannot create intermediate directories for hydra log files. (with {err=})"
                 )
         super().__init__(filename, mode, encoding, delay)

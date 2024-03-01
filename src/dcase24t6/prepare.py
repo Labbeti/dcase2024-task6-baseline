@@ -28,7 +28,7 @@ from omegaconf import DictConfig, OmegaConf
 from torch.utils.data.dataset import Subset
 from torchoutil.utils.hdf import pack_to_hdf
 
-logger = logging.getLogger(__name__)
+pylog = logging.getLogger(__name__)
 
 
 @hydra.main(
@@ -41,7 +41,7 @@ def prepare(cfg: DictConfig) -> None:
     OmegaConf.resolve(cfg)
     OmegaConf.set_readonly(cfg, True)
     if cfg.verbose >= 1:
-        logger.info(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
+        pylog.info(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     pre_process = instantiate(cfg.pre_process)
 
