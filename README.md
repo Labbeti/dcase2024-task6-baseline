@@ -71,7 +71,12 @@ Training follows the standard way to create a model with lightning:
 - Start fitting the model on the specified datamodule.
 - Evaluate the model using [aac-metrics](https://github.com/Labbeti/aac-metrics)
 
-## Main hyperparameters
+## Model
+
+The model outperforms previous baselines with a SPIDEr-FL score of 29.5% on the Clotho evaluation subset.
+The architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
+
+### Main hyperparameters
 
 | Hyperparameter | Value | Option |
 | --- | --- | --- |
@@ -83,6 +88,8 @@ Training follows the standard way to create a model with lightning:
 | Model dimension size | 256 | `model.d_model` |
 | Label smoothing | 0.2 | `model.label_smoothing` |
 | Mixup alpha | 0.4 | `model.mixup_alpha` |
+
+<!-- TODO: model size -->
 
 ## Tips
 - **How to modify the model?**
@@ -97,6 +104,7 @@ To train a new model on these features, you can specify the HDF files required i
 ## Additional information
 - The code has been made for Ubuntu 20.04 and should work on more recent Ubuntu versions.
 - The GPU used is NVIDIA GeForce RTX 2080 Ti. Training lasts for approximatively 2 hours in the default setting.
+- In this code, the clotho subsets are naming following the Clotho convention, not DCASE convention. See more information [on this page](https://aac-datasets.readthedocs.io/en/stable/data_subsets.html#clotho).
 
 
 ## See also
