@@ -25,6 +25,7 @@ from aac_metrics.download import download_metrics
 from hydra.utils import instantiate
 from lightning import seed_everything
 from omegaconf import DictConfig, OmegaConf
+from torch.utils.data.dataset import Subset
 from torchoutil.utils.hdf import pack_to_hdf
 
 logger = logging.getLogger(__name__)
@@ -53,6 +54,7 @@ def prepare(cfg: DictConfig) -> None:
         overwrite=cfg.overwrite,
         batch_size=cfg.batch_size,
         num_workers=cfg.num_workers,
+        size_limit=cfg.size_limit,
         verbose=cfg.verbose,
     )
 
@@ -66,6 +68,7 @@ def prepare_data_metrics_models(
     overwrite: bool = False,
     batch_size: int = 32,
     num_workers: int | Literal["auto"] = "auto",
+    size_limit: int | None = None,
     verbose: int = 0,
 ) -> None:
     dataroot = Path(dataroot).resolve()
@@ -94,6 +97,9 @@ def prepare_data_metrics_models(
             download=False,
             verbose=verbose,
         )
+
+        if size_limit is not None and len(dataset) > size_limit:
+            dataset = Subset(dataset, list(range(size_limit)))
 
         # example: clotho_dev.hdf
         hdf_fname = hdf_pattern.format(

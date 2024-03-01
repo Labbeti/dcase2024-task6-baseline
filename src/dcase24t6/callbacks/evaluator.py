@@ -3,6 +3,7 @@
 
 import csv
 import logging
+import re
 from pathlib import Path
 from typing import Any, Iterable, Literal
 
@@ -30,15 +31,20 @@ class Evaluator(Callback):
         save_dir: str | Path,
         val_metrics: str | Iterable[str] = (),
         test_metrics: str | Iterable[str] = "all",
-        accepted_output_keys: Iterable[str] | None = None,
+        exclude_keys: str | Iterable[str] | None = None,
     ) -> None:
         save_dir = Path(save_dir).resolve()
-        if accepted_output_keys is not None:
-            accepted_output_keys = list(accepted_output_keys)
+
+        if exclude_keys is None:
+            exclude_keys = []
+        elif isinstance(exclude_keys, str):
+            exclude_keys = [exclude_keys]
+        else:
+            exclude_keys = list(exclude_keys)
 
         super().__init__()
         self.save_dir = save_dir
-        self.accepted_output_keys = accepted_output_keys
+        self.exclude_keys = exclude_keys
 
         self.metrics = {
             "val": Evaluate(metrics=val_metrics),
@@ -211,11 +217,11 @@ class Evaluator(Callback):
             candidates, mult_references
         )
         corpus_scores = {
-            f"{stage}/{dataset_name}.{k}": v.item() for k, v in corpus_scores.items()
+            f"{stage}/{dataset_name}.{k}": _tensor_to_builtin(v)
+            for k, v in corpus_scores.items()
         }
         sentences_scores = {
-            f"{stage}/{dataset_name}.{k}": v.tolist()
-            for k, v in sentences_scores.items()
+            k: _tensor_to_builtin(v) for k, v in sentences_scores.items()
         }
         return corpus_scores, sentences_scores
 
@@ -231,11 +237,12 @@ class Evaluator(Callback):
         logger.info(
             f"Metrics results for {stage} at epoch {pl_module.current_epoch}:\n{yaml.dump(corpus_scores, sort_keys=False)}"
         )
-
         for pl_logger in pl_module.loggers:
             pl_logger.log_metrics(corpus_scores)
 
-        corpus_scores_fpath = self.save_dir.joinpath(f"{stage}_scores.yaml")
+        corpus_scores_fpath = self.save_dir.joinpath(
+            f"{stage}_{dataset_name}_scores.yaml"
+        )
         save_hparams_to_yaml(corpus_scores_fpath, corpus_scores)
 
         sentences_scores_lst = dict_list_to_list_dict(sentences_scores)
@@ -243,17 +250,20 @@ class Evaluator(Callback):
             result | scores
             for result, scores in zip(dataset_results, sentences_scores_lst)
         ]
-        if self.accepted_output_keys is not None:
-            rows = [
-                {k: v for k, v in row.items() if k in self.accepted_output_keys}
-                for row in rows
-            ]
         rows = [
-            {k: _convert_tensor_to_builtin(v) for k, v in row.items()} for row in rows
+            {
+                k: v
+                for k, v in row.items()
+                if all(re.search(pattern, k) for pattern in self.exclude_keys)
+            }
+            for row in rows
         ]
+        rows = [{k: _tensor_to_builtin(v) for k, v in row.items()} for row in rows]
         fieldnames = rows[0].keys()
 
-        sentences_scores_fpath = self.save_dir.joinpath(f"{stage}_outputs.csv")
+        sentences_scores_fpath = self.save_dir.joinpath(
+            f"{stage}_{dataset_name}_outputs.csv"
+        )
         with open(sentences_scores_fpath, "w") as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
@@ -278,7 +288,7 @@ class Evaluator(Callback):
         )
 
 
-def _convert_tensor_to_builtin(v: Any) -> Any:
+def _tensor_to_builtin(v: Any) -> Any:
     if not isinstance(v, Tensor):
         return v
     elif v.ndim == 0:

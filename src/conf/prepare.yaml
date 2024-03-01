@@ -21,3 +21,4 @@ hdf_pattern: "{dataset}_{subset}_${hydra:runtime.choices.pre_process}.hdf"  # st
 overwrite: false  # bool
 batch_size: 32  # int
 num_workers: "auto"  # int | "auto"
+size_limit: null  # int | null

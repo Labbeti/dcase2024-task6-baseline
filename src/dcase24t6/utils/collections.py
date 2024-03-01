@@ -4,9 +4,10 @@
 from typing import Any, Literal, Mapping, Sequence, TypeVar
 
 T = TypeVar("T")
+U = TypeVar("U")
 
 
-def dict_list_to_list_dict(dic: Mapping[str, Sequence[T]]) -> list[dict[str, T]]:
+def dict_list_to_list_dict(dic: Mapping[T, Sequence[U]]) -> list[dict[T, U]]:
     """Convert dict of lists with same sizes to list of dicts.
 
     Example 1
@@ -17,6 +18,9 @@ def dict_list_to_list_dict(dic: Mapping[str, Sequence[T]]) -> list[dict[str, T]]
     ... [{"a": 1, "b": 3}, {"a": 2, "b": 4}]
     ```
     """
+    if len(dic) == 0:
+        raise ValueError(f"Invalid argument {dict=}. (expected non-empty dict)")
+
     length = len(next(iter(dic.values())))
     result = [{k: v[i] for k, v in dic.items()} for i in range(length)]
     return result
