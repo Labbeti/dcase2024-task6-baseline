@@ -48,6 +48,7 @@ def prepare(cfg: DictConfig) -> None:
     return prepare_data_metrics_models(
         dataroot=cfg.path.data_root,
         subsets=cfg.subsets,
+        download_clotho=cfg.download_clotho,
         force=cfg.force,
         hdf_pattern=cfg.hdf_pattern,
         pre_process=pre_process,
@@ -62,6 +63,7 @@ def prepare(cfg: DictConfig) -> None:
 def prepare_data_metrics_models(
     dataroot: str | Path = "data",
     subsets: Iterable[str] = (),
+    download_clotho: bool = True,
     force: bool = False,
     hdf_pattern: str = "{dataset}_{subset}.hdf",
     pre_process: Callable | None = None,
@@ -78,14 +80,16 @@ def prepare_data_metrics_models(
     download_metrics(verbose=verbose)
 
     os.makedirs(dataroot, exist_ok=True)
-    download_clotho_datasets(
-        root=dataroot,
-        subsets=subsets,
-        force=force,
-        verbose=verbose,
-        clean_archives=False,
-        verify_files=True,
-    )
+
+    if download_clotho:
+        download_clotho_datasets(
+            root=dataroot,
+            subsets=subsets,
+            force=force,
+            verbose=verbose,
+            clean_archives=False,
+            verify_files=True,
+        )
 
     hdf_root = dataroot.joinpath("HDF")
     os.makedirs(hdf_root, exist_ok=True)

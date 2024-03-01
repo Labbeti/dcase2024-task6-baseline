@@ -15,6 +15,7 @@ verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 
 # --- Prepare args
 subsets: ["dev", "val", "eval", "dcase_aac_test", "dcase_aac_analysis"]
+download_clotho: true
 force: false
 
 hdf_pattern: "{dataset}_{subset}_${hydra:runtime.choices.pre_process}.hdf"  # str

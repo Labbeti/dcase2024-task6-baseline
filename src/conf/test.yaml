@@ -1,0 +1,11 @@
+# @package _global_
+
+defaults:
+  - train
+  - _self_
+
+trainer:
+  max_epochs: 0
+  limit_train_batches: 0
+
+ckpt_path: ???
