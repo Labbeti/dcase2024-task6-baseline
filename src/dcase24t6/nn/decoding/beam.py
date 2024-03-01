@@ -13,6 +13,7 @@ from torchoutil import (
     repeat_interleave_nd,
     tensor_to_lengths,
 )
+from torchoutil.nn import TensorTo
 
 from dcase24t6.nn.decoding.common import AACDecoder
 
@@ -251,7 +252,8 @@ def _select_k_next_toks(
     :param is_first: Indicate if this is the first word predicted to avoid predict the same word at the beginning.
     """
     beam_size, vocab_size = logits_i.shape
-    log_activation = nn.LogSoftmax(dim=1)
+    # note: Use TensorTo because torch.log_softmax returns f32 even if the tensor is f16, so we need to cast it to the correct precision level
+    log_activation = nn.Sequential(nn.LogSoftmax(dim=1), TensorTo(dtype=logits_i.dtype))
 
     if is_first:
         logits_i = logits_i[0].unsqueeze(dim=0)
