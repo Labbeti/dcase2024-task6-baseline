@@ -31,11 +31,22 @@ class Evaluator(Callback):
         save_dir: str | Path,
         val_metrics: str | Iterable[str] = (),
         test_metrics: str | Iterable[str] = "all",
-        exclude_keys: str | Iterable[str] | None = None,
+        exclude_keys: str | Iterable[str] | None = "frame_embs",
         outputs_fname: str = "{stage}_{dataset_name}_outputs.csv",
         scores_fname: str = "{stage}_{dataset_name}_scores.yaml",
         submission_fname: str = "labbe_irit_task6_submission_1_{dataset_name}.csv",
     ) -> None:
+        """Evaluator callback to save results and outputs.
+
+        Args:
+            save_dir: Save directory path.
+            val_metrics: List of metrics to compute after each validation epoch.
+            test_metrics: List of metrics to compute after each test epoch.
+            exclude_keys: Excluded values from the outputs file. Meant to avoid saving input audio from the batch.
+            outputs_fname: Filename format where detailed outputs and results are stored.
+            scores_fname: Filename format where corpus global scores are stored.
+            submission_fname: Filename format where model outputs are stored for the DCASE challenge.
+        """
         save_dir = Path(save_dir).resolve()
 
         if exclude_keys is None:
