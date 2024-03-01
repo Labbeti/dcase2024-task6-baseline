@@ -92,13 +92,26 @@ The architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.p
 <!-- TODO: model size -->
 
 ## Tips
-- **How to modify the model?**
+- **Modify the model**
 The model class is located in `src/dcase24t6/models/trans_decoder.py`. It is recommanded to create another class and conf to keep different models architectures.
 The loss is computed in the method called `training_step`. You can also modify the model architecture in the method called `setup`.
 
-- **How to extract different audio features?**
+- **Extract different audio features**
 For that, you can add a new pre-process function in `src/dcase24t6/pre_processes` and the related conf in `src/conf/pre_process`. Then, re-run `dcase24t6-prepare pre_process=YOUR_PROCESS download_clotho=false` to create new HDF files with your own features.
 To train a new model on these features, you can specify the HDF files required in `dcase24t6-train datamodule.train_hdfs=clotho_dev_YOUR_PROCESS.hdf datamodule.val_hdfs=... datamodule.test_hdfs=... datamodule.predict_hdfs=...`. Depending on the features extracted, some parameters could be modified in the model to handle them.
+
+- **Using as a package**
+If you do not want ot use the entire codebase but only parts of it, you can install it as a package using:
+
+```bash
+pip install git+https://github.com/Labbeti/dcase2024-task6-baseline
+```
+
+Then you will be able to import any object from the code like for example `from dcase24t6.models.trans_decoder import TransDecoderModel`. There is also several important dependencies that you can install separately:
+
+- `aac-metrics` to compute AAC metrics,
+- `aac-datasets` to download and load AAC datasets,
+- `torchoutil[extras]` to pack to HDF datasets.
 
 
 ## Additional information
