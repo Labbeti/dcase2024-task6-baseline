@@ -2,10 +2,10 @@
 
 trainer:
   max_epochs: 3
-  limit_predict_batches: 0
-  limit_test_batches: 3
-  limit_train_batches: 3
-  limit_val_batches: 3
+  limit_predict_batches: 2
+  limit_test_batches: 2
+  limit_train_batches: 2
+  limit_val_batches: 2
 
 datamodule:
   batch_size: 4
