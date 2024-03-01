@@ -29,6 +29,7 @@ Changelog = "https://github.com/Labbeti/dcase2024-task6-baseline/blob/main/CHANG
 dcase24t6-info = "dcase24t6.info:print_info"
 dcase24t6-prepare = "dcase24t6.prepare:prepare"
 dcase24t6-train = "dcase24t6.train:train"
+dcase24t6-test = "dcase24t6.train:test"
 
 [tool.setuptools.packages.find]
 where = ["src"]  # list of folders that contain the packages (["."] by default)
