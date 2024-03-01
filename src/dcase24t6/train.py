@@ -123,7 +123,10 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
         )
         callbacks["early_stop"] = early_stop
 
-    logger.info(f"Adding {len(callbacks)} callbacks: {', '.join(callbacks.keys())}")
+    callbacks_str = ", ".join(
+        callback.__class__.__name__ for callback in callbacks.values()
+    )
+    logger.info(f"Adding {len(callbacks)} callbacks: {callbacks_str}")
 
     return callbacks
 

@@ -32,6 +32,9 @@ class Evaluator(Callback):
         val_metrics: str | Iterable[str] = (),
         test_metrics: str | Iterable[str] = "all",
         exclude_keys: str | Iterable[str] | None = None,
+        outputs_fname: str = "{stage}_{dataset_name}_outputs.csv",
+        scores_fname: str = "{stage}_{dataset_name}_scores.yaml",
+        submission_fname: str = "labbe_irit_task6_submission_1_{dataset_name}.csv",
     ) -> None:
         save_dir = Path(save_dir).resolve()
 
@@ -45,6 +48,9 @@ class Evaluator(Callback):
         super().__init__()
         self.save_dir = save_dir
         self.exclude_keys = exclude_keys
+        self.outputs_fname = outputs_fname
+        self.scores_fname = scores_fname
+        self.submission_fname = submission_fname
 
         self.metrics = {
             "val": Evaluate(metrics=val_metrics),
@@ -240,10 +246,9 @@ class Evaluator(Callback):
         for pl_logger in pl_module.loggers:
             pl_logger.log_metrics(corpus_scores)
 
-        corpus_scores_fpath = self.save_dir.joinpath(
-            f"{stage}_{dataset_name}_scores.yaml"
-        )
-        save_hparams_to_yaml(corpus_scores_fpath, corpus_scores)
+        scores_fname = self.scores_fname.format(stage=stage, dataset_name=dataset_name)
+        scores_fpath = self.save_dir.joinpath(scores_fname)
+        save_hparams_to_yaml(scores_fpath, corpus_scores)
 
         sentences_scores_lst = dict_list_to_list_dict(sentences_scores)
         rows = [
@@ -254,17 +259,18 @@ class Evaluator(Callback):
             {
                 k: v
                 for k, v in row.items()
-                if all(re.search(pattern, k) for pattern in self.exclude_keys)
+                if all(re.search(pattern, k) is None for pattern in self.exclude_keys)
             }
             for row in rows
         ]
         rows = [{k: _tensor_to_builtin(v) for k, v in row.items()} for row in rows]
         fieldnames = rows[0].keys()
 
-        sentences_scores_fpath = self.save_dir.joinpath(
-            f"{stage}_{dataset_name}_outputs.csv"
+        outputs_fname = self.outputs_fname.format(
+            stage=stage, dataset_name=dataset_name
         )
-        with open(sentences_scores_fpath, "w") as file:
+        outputs_fpath = self.save_dir.joinpath(outputs_fname)
+        with open(outputs_fpath, "w") as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(rows)
@@ -278,9 +284,10 @@ class Evaluator(Callback):
         candidates = [result["candidates"] for result in dataset_results]
         fnames = [result["fname"] for result in dataset_results]
 
-        submission_fpath = self.save_dir.joinpath(
-            f"labbe_irit_task6_submission_1_{dataset_name}.csv"
+        submission_fname = self.submission_fname.format(
+            stage=stage, dataset_name=dataset_name
         )
+        submission_fpath = self.save_dir.joinpath(submission_fname)
         export_to_csv_for_dcase_aac(
             submission_fpath,
             fnames,

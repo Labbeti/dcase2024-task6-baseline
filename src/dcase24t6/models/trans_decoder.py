@@ -210,7 +210,7 @@ class TransDecoderModel(AACModel):
 
         decoded = self.decode_audio(encoded, method="generate")
         outputs = {
-            "loss": losses,
+            "val/loss": losses,
         } | decoded
         return outputs
 
@@ -249,7 +249,7 @@ class TransDecoderModel(AACModel):
 
         decoded = self.decode_audio(encoded, method="generate")
         outputs = {
-            "loss": losses,
+            "test/loss": losses,
         } | decoded
         return outputs
 

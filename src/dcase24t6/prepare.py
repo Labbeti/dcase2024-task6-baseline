@@ -112,7 +112,7 @@ def prepare_data_metrics_models(
             continue
 
         pack_to_hdf(
-            dataset=dataset,
+            dataset=dataset,  # type: ignore
             hdf_fpath=hdf_fpath,
             pre_transform=pre_process,
             overwrite=overwrite,

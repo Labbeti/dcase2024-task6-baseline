@@ -18,10 +18,11 @@ verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 ckpt_path: null  # str | null
 
 ckpt:
-  _target_: "lightning.pytorch.callbacks.model_checkpoint.ModelCheckpoint"
+  _target_: "dcase24t6.callbacks.ckpt.CustomModelCheckpoint"
   monitor: "val/loss"
   mode: "min"
   filename: "{epoch:03d}-{step:06d}-mode_${ckpt.mode}-{${ckpt.monitor}:.4f}"
+  replace_slash_in_filename: true
 
 log:
   _target_: "lightning.pytorch.loggers.tensorboard.TensorBoardLogger"
