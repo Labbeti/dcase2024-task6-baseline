@@ -6,6 +6,7 @@ trainer:
   limit_test_batches: 2
   limit_train_batches: 2
   limit_val_batches: 2
+  accumulate_grad_batches: 1
 
 datamodule:
   batch_size: 4

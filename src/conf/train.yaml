@@ -37,7 +37,7 @@ trainer:
   _target_: "lightning.pytorch.trainer.Trainer"
 
   accelerator: "gpu"
-  accumulate_grad_batches: 1
+  accumulate_grad_batches: 8
   benchmark: false
   detect_anomaly: false
   deterministic: false

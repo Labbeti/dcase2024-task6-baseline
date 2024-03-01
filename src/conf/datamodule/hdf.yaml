@@ -15,7 +15,7 @@ test_batch_keys: ["frame_embs", "frame_embs_shape", "dataset", "subset", "fname"
 predict_batch_keys: ["frame_embs", "frame_embs_shape", "dataset", "subset", "fname"]
 
 # DataLoader args
-batch_size: 32
+batch_size: 64
 num_workers: "auto"
 pin_memory: true
 train_drop_last: false

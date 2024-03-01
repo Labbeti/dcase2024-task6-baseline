@@ -81,6 +81,8 @@ The architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.p
 | Hyperparameter | Value | Option |
 | --- | --- | --- |
 | Number of epochs | 400 | `trainer.max_epochs` |
+| Batch size | 64 | `datamodule.batch_size` |
+| Gradient accumulation | 8 | `trainer.accumulate_grad_batches` |
 | Learning rate | 5e-4 | `model.lr` |
 | Weight decay | 2 | `model.weight_decay` |
 | Gradient clipping | 1 | `trainer.gradient_clip_val` |
