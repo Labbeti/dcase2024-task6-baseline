@@ -149,7 +149,7 @@ class Evaluator(Callback):
             result for result in self.all_results if result["stage"] == stage
         ]
 
-        REQUIRED_KEYS = ("dataset", "subset", "candidates", "mult_references", "fname")
+        REQUIRED_KEYS = ("dataset", "subset", "fname", "candidates")
         if not all(key in result for result in stage_results for key in REQUIRED_KEYS):
             logger.info(
                 f"Skipping stage results {stage} because it is missing required output keys."
