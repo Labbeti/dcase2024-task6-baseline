@@ -1,6 +1,7 @@
 # @package _global_
 
 defaults:
+  - ckpt: custom
   - datamodule: hdf
   - emission: online
   - model: trans_decoder
@@ -18,14 +19,7 @@ verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 # --- Train args
 ckpt_path: null  # str | null
 
-ckpt:
-  _target_: "dcase24t6.callbacks.ckpt.CustomModelCheckpoint"
-  monitor: "val/loss"
-  mode: "min"
-  filename: "{epoch:03d}-{step:06d}-mode_${ckpt.mode}-{${ckpt.monitor}:.4f}"
-  replace_slash_in_filename: true
-
-log:
+logger:
   _target_: "lightning.pytorch.loggers.tensorboard.TensorBoardLogger"
   save_dir: "${save_dir}"
   name: "."

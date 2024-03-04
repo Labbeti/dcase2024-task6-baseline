@@ -3,6 +3,9 @@
 _target_: "dcase24t6.callbacks.emissions.CustomEmissionTracker"
 
 save_dir: ${save_dir}
-experiment_name: ${save_name}
+emissions_fname: "{task}_emissions.yaml"
 country_iso_code: ???
 offline: true
+disabled: false
+
+experiment_name: ${save_name}

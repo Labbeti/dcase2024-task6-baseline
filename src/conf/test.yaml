@@ -2,6 +2,7 @@
 
 defaults:
   - train
+  - ckpt: disabled
   - _self_
 
 trainer:

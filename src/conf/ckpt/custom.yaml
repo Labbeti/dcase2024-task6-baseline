@@ -1,0 +1,8 @@
+# @package ckpt
+
+_target_: "dcase24t6.callbacks.ckpt.CustomModelCheckpoint"
+
+monitor: "val/loss"
+mode: "min"
+filename: "{epoch:03d}-{step:06d}-mode_${ckpt.mode}-{${ckpt.monitor}:.4f}"
+replace_slash_in_filename: true
