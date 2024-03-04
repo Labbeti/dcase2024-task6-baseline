@@ -37,6 +37,7 @@ from lightning.pytorch.callbacks import (
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 
+from dcase24t6.callbacks.emissions import EmissionTrackerCallback
 from dcase24t6.callbacks.evaluator import Evaluator
 from dcase24t6.callbacks.op_counter import OpCounter
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
@@ -105,6 +106,7 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     model_summary = ModelSummary(max_depth=1)
     op_counter = OpCounter(cfg.save_dir, verbose=cfg.verbose)
     lr_monitor = LearningRateMonitor()
+    emission: EmissionTrackerCallback = instantiate(cfg.emission)
 
     callbacks: dict[str, Callback] = {
         "checkpoint": checkpoint,
@@ -112,6 +114,7 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
         "model_summary": model_summary,
         "op_counter": op_counter,
         "lr_monitor": lr_monitor,
+        "emission": emission,
     }
 
     if checkpoint.monitor is not None:
@@ -144,13 +147,13 @@ def save_stats(
     tokenizer.save(tok_fpath)
 
     datamodule_fpath = save_dir.joinpath("hparams_datamodule.yaml")
-    save_to_yaml(datamodule_fpath, datamodule.hparams)
+    save_to_yaml(datamodule.hparams, datamodule_fpath)
 
     model_fpath = save_dir.joinpath("hparams_model.yaml")
-    save_to_yaml(model_fpath, model.hparams)
+    save_to_yaml(model.hparams, model_fpath)
 
     job_info_fpath = save_dir.joinpath("job_info.yaml")
-    save_to_yaml(job_info_fpath, job_info)
+    save_to_yaml(job_info, job_info_fpath)
 
 
 if __name__ == "__main__":

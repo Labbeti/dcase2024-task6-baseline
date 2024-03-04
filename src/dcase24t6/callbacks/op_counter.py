@@ -70,7 +70,7 @@ class OpCounter(Callback):
 
         cplxity_fname = self.cplxity_fname.format(stage=stage)
         cplxity_fpath = self.save_dir.joinpath(cplxity_fname)
-        save_to_yaml(cplxity_fpath, metrics)
+        save_to_yaml(metrics, cplxity_fpath)
 
 
 def measure_complexity_with_deepspeed(

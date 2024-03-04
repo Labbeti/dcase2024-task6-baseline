@@ -256,8 +256,8 @@ class Evaluator(Callback):
         scores_fname = self.scores_fname.format(stage=stage, dataset_name=dataset_name)
         scores_fpath = self.save_dir.joinpath(scores_fname)
         save_to_yaml(
-            scores_fpath,
             corpus_scores,
+            scores_fpath,
             resolve=False,
             to_builtins=True,
             overwrite=False,

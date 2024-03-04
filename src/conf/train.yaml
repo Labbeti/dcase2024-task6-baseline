@@ -66,3 +66,10 @@ evaluator:
   val_metrics: ["cider_d", "vocab"]
   test_metrics: "all"
   exclude_keys: ["frame_embs"]
+
+emission:
+  _target_: "dcase24t6.callbacks.emissions.EmissionTrackerCallback"
+  save_dir: ${save_dir}
+  experiment_name: ${save_name}
+  country_iso_code: null
+  offline: false
