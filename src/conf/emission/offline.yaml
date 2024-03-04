@@ -1,0 +1,8 @@
+# @package emission
+
+_target_: "dcase24t6.callbacks.emissions.EmissionTrackerCallback"
+
+save_dir: ${save_dir}
+experiment_name: ${save_name}
+country_iso_code: ???
+offline: true
