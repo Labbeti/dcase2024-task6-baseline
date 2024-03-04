@@ -7,7 +7,7 @@ trainer:
   limit_train_batches: null
   limit_val_batches: null
   accumulate_grad_batches: 8
-  log_every_n_steps: ${datamodule.batch_size}
+  log_every_n_steps: 5
 
 datamodule:
   batch_size: 64
