@@ -37,7 +37,7 @@ from lightning.pytorch.callbacks import (
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 
-from dcase24t6.callbacks.emissions import EmissionTrackerCallback
+from dcase24t6.callbacks.emissions import CustomEmissionTracker
 from dcase24t6.callbacks.evaluator import Evaluator
 from dcase24t6.callbacks.op_counter import OpCounter
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
@@ -106,7 +106,7 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     model_summary = ModelSummary(max_depth=1)
     op_counter = OpCounter(cfg.save_dir, verbose=cfg.verbose)
     lr_monitor = LearningRateMonitor()
-    emission: EmissionTrackerCallback = instantiate(cfg.emission)
+    emission_tracker: CustomEmissionTracker = instantiate(cfg.emission)
 
     callbacks: dict[str, Callback] = {
         "checkpoint": checkpoint,
@@ -114,7 +114,7 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
         "model_summary": model_summary,
         "op_counter": op_counter,
         "lr_monitor": lr_monitor,
-        "emission": emission,
+        "emission_tracker": emission_tracker,
     }
 
     if checkpoint.monitor is not None:

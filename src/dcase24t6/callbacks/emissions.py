@@ -6,7 +6,11 @@ import os
 from pathlib import Path
 from typing import Any, Literal
 
-from codecarbon.emissions_tracker import EmissionsTracker, OfflineEmissionsTracker
+from codecarbon.emissions_tracker import (
+    EmissionsData,
+    EmissionsTracker,
+    OfflineEmissionsTracker,
+)
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import Callback
 
@@ -16,7 +20,7 @@ from dcase24t6.utils.saving import save_to_yaml
 EmissionStage = Literal["fit", "test", "predict"]
 
 
-class EmissionTrackerCallback(Callback):
+class CustomEmissionTracker(Callback):
     def __init__(
         self,
         save_dir: str | Path,
@@ -51,6 +55,12 @@ class EmissionTrackerCallback(Callback):
         self.output_dir = output_dir
         self.tracker = tracker
 
+    def start_task(self, task: str) -> None:
+        return self.tracker.start_task(task)
+
+    def stop_task(self, task: str) -> EmissionsData:
+        return self.tracker.stop_task(task)
+
     def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self._on_start("fit")
 
@@ -70,11 +80,11 @@ class EmissionTrackerCallback(Callback):
         self._on_end("predict")
 
     def _on_start(self, stage: EmissionStage) -> None:
-        self.tracker.start_task(stage)
+        self.start_task(stage)
 
     def _on_end(self, stage: EmissionStage) -> None:
         os.makedirs(self.output_dir, exist_ok=True)
-        emissions = self.tracker.stop_task(stage)
+        emissions = self.stop_task(stage)
         emissions_fname = "{stage}_emissions.yaml".format(stage=stage)
         emissions_fpath = self.output_dir.joinpath(emissions_fname)
         save_to_yaml(emissions, emissions_fpath, resolve=False)

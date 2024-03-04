@@ -1,6 +1,6 @@
 # @package emission
 
-_target_: "dcase24t6.callbacks.emissions.EmissionTrackerCallback"
+_target_: "dcase24t6.callbacks.emissions.CustomEmissionTracker"
 
 save_dir: ${save_dir}
 experiment_name: ${save_name}
