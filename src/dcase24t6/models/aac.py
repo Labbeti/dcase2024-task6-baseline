@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, TypedDict
 
 import torch
 from lightning import LightningDataModule, LightningModule, Trainer
+from torch import Tensor
 
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
 
@@ -73,3 +74,30 @@ def has_datamodule(plm: LightningModule) -> bool:
 
 def trainer_has_datamodule(trainer: Trainer) -> bool:
     return trainer.datamodule is not None  # type: ignore
+
+
+class Batch(TypedDict):
+    frame_embs: Tensor
+    frame_embs_shape: Tensor
+
+
+class TrainBatch(Batch):
+    captions: Tensor
+
+
+class ValBatch(Batch):
+    mult_captions: Tensor
+    mult_references: list[list[str]]
+    dataset: str
+    subset: str
+    fname: str
+
+
+class TestBatch(ValBatch):
+    pass
+
+
+class PredictBatch(Batch):
+    dataset: str
+    subset: str
+    fname: str

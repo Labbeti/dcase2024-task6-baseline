@@ -6,15 +6,7 @@ import os
 from argparse import Namespace
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
-from typing import (
-    Any,
-    ClassVar,
-    Mapping,
-    NamedTuple,
-    Protocol,
-    Sequence,
-    runtime_checkable,
-)
+from typing import Any, ClassVar, Mapping, Protocol, Sequence, runtime_checkable
 
 import yaml
 from omegaconf import DictConfig, OmegaConf
@@ -29,8 +21,24 @@ class DataclassInstance(Protocol):
     __dataclass_fields__: ClassVar[dict[str, Any]]
 
 
+@runtime_checkable
+class NamedTupleInstance(Protocol):
+    # Class meant for typing purpose only
+    _fields: tuple[str, ...]
+    _fields_defaults: dict[str, Any]
+
+    def _asdict(self) -> dict[str, Any]:
+        ...
+
+
 def save_to_yaml(
-    data: Mapping[str, Any] | DictConfig | Namespace | DataclassInstance | NamedTuple,
+    data: (
+        Mapping[str, Any]
+        | DictConfig
+        | Namespace
+        | DataclassInstance
+        | NamedTupleInstance
+    ),
     fpath: str | Path | None,
     *,
     overwrite: bool = True,
@@ -56,7 +64,7 @@ def save_to_yaml(
             raise TypeError(f"Invalid argument type {type(data)}.")
         data = asdict(data)
 
-    elif isinstance(data, NamedTuple):
+    elif isinstance(data, NamedTupleInstance):
         data = data._asdict()
 
     if resolve:

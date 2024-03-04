@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import time
 from pathlib import Path
 from typing import Any, Literal
 
@@ -10,6 +11,7 @@ from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks.callback import Callback
 from torchoutil import move_to_rec
 
+from dcase24t6.models.aac import TestBatch
 from dcase24t6.utils.saving import save_to_yaml
 
 pylog = logging.getLogger(__name__)
@@ -30,7 +32,7 @@ class OpCounter(Callback):
         self.backend = backend
         self.verbose = verbose
 
-    def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+    def on_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         datamodule = trainer.datamodule  # type: ignore
         if "batch_size" not in datamodule.hparams:
             pylog.warning(
@@ -38,39 +40,63 @@ class OpCounter(Callback):
             )
             return None
 
-        batch_size = datamodule.hparams["batch_size"]
-        datamodule.hparams["batch_size"] = 1
-        loader = datamodule.train_dataloader()
-        datamodule.hparams["batch_size"] = batch_size
+        source_batch_size = datamodule.hparams["batch_size"]
+        target_batch_size = 1
+        datamodule.hparams["batch_size"] = target_batch_size
+        loaders = datamodule.test_dataloader()
+        datamodule.hparams["batch_size"] = source_batch_size
 
-        example = {"batch": next(iter(loader))}
-        self.count_num_ops(pl_module, example, "train")
+        dataloader_idx = 0
+        if isinstance(loaders, list):
+            loader = loaders[dataloader_idx]
+        else:
+            loader = loaders
+        del loaders
+        batch: TestBatch = next(iter(loader))
+        batch["captions"] = batch["mult_captions"][:, 0]  # type: ignore
 
-    def count_num_ops(
-        self,
-        pl_module: LightningModule,
-        example: Any,
-        stage: str,
-    ) -> None:
-        match self.backend:
-            case "deepspeed":
-                flops, macs, params = measure_complexity_with_deepspeed(
-                    pl_module, example, self.verbose
-                )
-            case backend:
-                raise NotImplementedError(f"Invalid argument {backend}.")
+        METHODS = ("forcing", "generate")
+        metrics = {}
+        for method in METHODS:
+            example = {
+                "batch": batch,
+                "method": method,
+            }
 
-        metrics = {
-            "model/flops": flops,
-            "model/macs": macs,
-            "model/params": params,
-        }
+            start = time.perf_counter()
+            match self.backend:
+                case "deepspeed":
+                    flops, macs, params = measure_complexity_with_deepspeed(
+                        model=pl_module,
+                        example=example,
+                        verbose=self.verbose,
+                    )
+                case backend:
+                    raise ValueError(f"Invalid argument {backend=}.")
+            end = time.perf_counter()
+
+            example_metrics = {
+                "params": params,
+                "flops": flops,
+                "macs": macs,
+                "duration": end - start,
+            }
+            metrics |= {f"{method}_{k}": v for k, v in example_metrics.items()}
+
         for pl_logger in pl_module.loggers:
             pl_logger.log_metrics(metrics)  # type: ignore
 
-        cplxity_fname = self.cplxity_fname.format(stage=stage)
-        cplxity_fpath = self.save_dir.joinpath(cplxity_fname)
-        save_to_yaml(metrics, cplxity_fpath)
+        cplxity_info = {
+            "metrics": metrics,
+            "batch_size": target_batch_size,
+            "dataloader": "test",
+            "dataloader_idx": dataloader_idx,
+            "fname": batch["fname"],
+            "dataset": batch["dataset"],
+            "subset": batch["subset"],
+        }
+        cplxity_fpath = self.save_dir.joinpath(self.cplxity_fname)
+        save_to_yaml(cplxity_info, cplxity_fpath)
 
 
 def measure_complexity_with_deepspeed(
@@ -83,6 +109,7 @@ def measure_complexity_with_deepspeed(
         model,
         kwargs=example,
         print_profile=verbose >= 2,
+        detailed=True,
         as_string=False,
     )
     return flops, macs, params  # type: ignore

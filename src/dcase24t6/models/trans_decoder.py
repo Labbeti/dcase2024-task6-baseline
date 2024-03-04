@@ -18,7 +18,7 @@ from torchoutil.nn import Transpose
 
 from dcase24t6.augmentations.mixup import sample_lambda
 from dcase24t6.datamodules.hdf import Stage
-from dcase24t6.models.aac import AACModel
+from dcase24t6.models.aac import AACModel, Batch, TestBatch, TrainBatch, ValBatch
 from dcase24t6.nn.decoders.aac_tfmer import AACTransformerDecoder
 from dcase24t6.nn.decoding.beam import generate
 from dcase24t6.nn.decoding.common import get_forbid_rep_mask_content_words
@@ -27,33 +27,6 @@ from dcase24t6.nn.decoding.greedy import greedy_search
 from dcase24t6.optim.schedulers import CosDecayScheduler
 from dcase24t6.optim.utils import create_params_groups
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
-
-
-class Batch(TypedDict):
-    frame_embs: Tensor
-    frame_embs_shape: Tensor
-
-
-class TrainBatch(Batch):
-    captions: Tensor
-
-
-class ValBatch(Batch):
-    mult_captions: Tensor
-    mult_references: list[list[str]]
-    dataset: str
-    subset: str
-    fname: str
-
-
-TestBatch = ValBatch
-
-
-class PredictBatch(Batch):
-    dataset: str
-    subset: str
-    fname: str
-
 
 ModelOutput = dict[str, Tensor]
 
@@ -124,10 +97,11 @@ class TransDecoderModel(AACModel):
             self.forbid_rep_mask: Optional[Tensor]
 
         if stage in ("fit", None) and "batch_size" in self.datamodule.hparams:
-            batch_size = self.datamodule.hparams["batch_size"]
-            self.datamodule.hparams["batch_size"] = 1
+            source_batch_size = self.datamodule.hparams["batch_size"]
+            target_batch_size = 1
+            self.datamodule.hparams["batch_size"] = target_batch_size
             loader = self.datamodule.train_dataloader()
-            self.datamodule.hparams["batch_size"] = batch_size
+            self.datamodule.hparams["batch_size"] = source_batch_size
             batch = next(iter(loader))
             self.example_input_array = {"batch": batch}
 
