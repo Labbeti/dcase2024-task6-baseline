@@ -62,7 +62,7 @@ def train(cfg: DictConfig) -> None | float:
         pylog.info(f"Full configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     # Initialize callbacks, model, etc...
-    loggers: Logger | list[Logger] = instantiate(cfg.log)
+    loggers: Logger | list[Logger] = instantiate(cfg.logger)
     callbacks = get_callbacks(cfg)
     tokenizer: AACTokenizer = instantiate(cfg.tokenizer)
     datamodule: LightningDataModule = instantiate(cfg.datamodule, tokenizer=tokenizer)
@@ -98,10 +98,6 @@ def train(cfg: DictConfig) -> None | float:
 
 
 def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
-    checkpoint: ModelCheckpoint = instantiate(cfg.ckpt)
-    # Avoid using '=' in filename because it mess up with hydra arguments
-    checkpoint.CHECKPOINT_EQUALS_CHAR = "_"  # type: ignore
-
     evaluator: Evaluator = instantiate(cfg.evaluator)
     model_summary = ModelSummary(max_depth=1)
     op_counter = OpCounter(cfg.save_dir, verbose=cfg.verbose)
@@ -109,7 +105,6 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     emission_tracker: CustomEmissionTracker = instantiate(cfg.emission)
 
     callbacks: dict[str, Callback] = {
-        "checkpoint": checkpoint,
         "evaluator": evaluator,
         "model_summary": model_summary,
         "op_counter": op_counter,
@@ -117,19 +112,26 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
         "emission_tracker": emission_tracker,
     }
 
-    if checkpoint.monitor is not None:
-        early_stop = EarlyStopping(
-            check_finite=True,
-            mode=checkpoint.mode,
-            monitor=checkpoint.monitor,
-            patience=sys.maxsize,
-        )
-        callbacks["early_stop"] = early_stop
+    checkpoint: ModelCheckpoint | None = instantiate(cfg.ckpt)
 
-    callbacks_str = ", ".join(
+    if checkpoint is not None:
+        # Avoid using '=' in filename because it mess up with hydra arguments
+        checkpoint.CHECKPOINT_EQUALS_CHAR = "_"  # type: ignore
+        callbacks["checkpoint"] = checkpoint
+
+        if checkpoint.monitor is not None:
+            early_stop = EarlyStopping(
+                check_finite=True,
+                mode=checkpoint.mode,
+                monitor=checkpoint.monitor,
+                patience=sys.maxsize,
+            )
+            callbacks["early_stop"] = early_stop
+
+    callbacks_names = ", ".join(
         callback.__class__.__name__ for callback in callbacks.values()
     )
-    pylog.info(f"Adding {len(callbacks)} callbacks: {callbacks_str}")
+    pylog.info(f"Adding {len(callbacks)} callbacks: {callbacks_names}")
 
     return callbacks
 

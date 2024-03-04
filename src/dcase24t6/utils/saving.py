@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import csv
+import os
 from argparse import Namespace
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
@@ -37,12 +38,15 @@ def save_to_yaml(
     resolve: bool = True,
     sort_keys: bool = False,
     indent: int | None = 4,
+    make_parents: bool = True,
     **kwargs,
 ) -> str:
     if fpath is not None:
         fpath = Path(fpath).resolve()
         if not overwrite and fpath.exists():
             raise FileExistsError(f"File {fpath} already exists.")
+        elif make_parents:
+            os.makedirs(fpath.parent, exist_ok=True)
 
     if isinstance(data, Namespace):
         data = data.__dict__
@@ -82,6 +86,7 @@ def save_to_csv(
     *,
     overwrite: bool = True,
     to_builtins: bool = True,
+    make_parents: bool = True,
     **kwargs,
 ) -> None:
     if isinstance(data, Mapping):
@@ -95,6 +100,8 @@ def save_to_csv(
     fpath = Path(fpath).resolve()
     if not overwrite and fpath.exists():
         raise FileExistsError(f"File {fpath} already exists.")
+    elif make_parents:
+        os.makedirs(fpath.parent, exist_ok=True)
 
     if to_builtins:
         data = [

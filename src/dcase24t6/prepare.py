@@ -29,7 +29,6 @@ from torch.utils.data.dataset import Subset
 from torchoutil.utils.hdf import pack_to_hdf
 
 from dcase24t6.callbacks.emissions import CustomEmissionTracker
-from dcase24t6.utils.saving import save_to_yaml
 
 pylog = logging.getLogger(__name__)
 
@@ -49,8 +48,8 @@ def prepare(cfg: DictConfig) -> None:
     pre_process = instantiate(cfg.pre_process)
 
     tracker: CustomEmissionTracker = instantiate(cfg.emission)
-    tracker.start_task("prepare")
 
+    tracker.start_task("prepare")
     prepare_data_metrics_models(
         dataroot=cfg.path.data_root,
         subsets=cfg.subsets,
@@ -64,11 +63,7 @@ def prepare(cfg: DictConfig) -> None:
         size_limit=cfg.size_limit,
         verbose=cfg.verbose,
     )
-
-    emissions = tracker.stop_task("prepare")
-    emissions_fname = "{task}_emissions.yaml".format(task="prepare")
-    emissions_fpath = Path(cfg.save_dir).joinpath("emissions", emissions_fname)
-    save_to_yaml(emissions, emissions_fpath, resolve=False)
+    tracker.stop_and_save_task("prepare")
 
 
 def prepare_data_metrics_models(
