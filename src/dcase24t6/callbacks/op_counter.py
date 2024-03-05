@@ -4,15 +4,18 @@
 import logging
 import time
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Mapping
 
+import torch
 from deepspeed.profiling.flops_profiler import get_model_profile
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks.callback import Callback
-from torchoutil import move_to_rec
+from torch import nn
+from torchoutil import get_device, move_to_rec
 
 from dcase24t6.models.aac import TestBatch
 from dcase24t6.utils.saving import save_to_yaml
+from dcase24t6.utils.type_checks import is_list_str
 
 pylog = logging.getLogger(__name__)
 
@@ -53,58 +56,93 @@ class OpCounter(Callback):
             loader = loaders
         del loaders
         batch: TestBatch = next(iter(loader))
-        batch["captions"] = batch["mult_captions"][:, 0]  # type: ignore
+
+        if "mult_captions" in batch and "captions" not in batch:
+            batch["captions"] = batch["mult_captions"][:, 0]  # type: ignore
 
         METHODS = ("forcing", "generate")
-        metrics = {}
+        complexities = {}
         for method in METHODS:
             example = {
                 "batch": batch,
                 "method": method,
             }
-
-            start = time.perf_counter()
-            match self.backend:
-                case "deepspeed":
-                    flops, macs, params = measure_complexity_with_deepspeed(
-                        model=pl_module,
-                        example=example,
-                        verbose=self.verbose,
-                    )
-                case backend:
-                    raise ValueError(f"Invalid argument {backend=}.")
-            end = time.perf_counter()
-
-            example_metrics = {
-                "params": params,
-                "flops": flops,
-                "macs": macs,
-                "duration": end - start,
+            example_complexities = self.profile(example, pl_module, pl_module.device)
+            complexities |= {
+                f"{method}_{k}": v for k, v in example_complexities.items()
             }
-            metrics |= {f"{method}_{k}": v for k, v in example_metrics.items()}
+        self.save(complexities, pl_module, batch)
 
-        for pl_logger in pl_module.loggers:
-            pl_logger.log_metrics(metrics)  # type: ignore
+    def profile(
+        self,
+        example: Any,
+        model: nn.Module,
+        device: str | torch.device | None = None,
+    ) -> dict[str, Any]:
+        if device is None and hasattr(model, "device"):
+            device = model.device
+        else:
+            model = model.to(device=device)
 
+        complexities = {}
+
+        start = time.perf_counter()
+        match self.backend:
+            case "deepspeed":
+                flops, macs, params = _measure_complexity_with_deepspeed(
+                    model=model,
+                    example=example,
+                    device=device,
+                    verbose=self.verbose,
+                )
+            case backend:
+                raise ValueError(f"Invalid argument {backend=}.")
+        end = time.perf_counter()
+
+        complexities = {
+            "params": params,
+            "flops": flops,
+            "macs": macs,
+            "duration": end - start,
+        }
+        return complexities
+
+    def save(
+        self,
+        complexities: dict[str, Any],
+        model: nn.Module,
+        batch: TestBatch,
+        fmt_kwargs: Mapping[str, Any] | None = None,
+    ) -> None:
+        if isinstance(model, LightningModule):
+            for pl_logger in model.loggers:
+                pl_logger.log_metrics(complexities)  # type: ignore
+
+        batch_size = len(batch["fname"]) if is_list_str(batch["fname"]) else 1
         cplxity_info = {
-            "metrics": metrics,
-            "batch_size": target_batch_size,
-            "dataloader": "test",
-            "dataloader_idx": dataloader_idx,
+            "metrics": complexities,
+            "model_class": model.__class__.__name__,
+            "batch_size": batch_size,
             "fname": batch["fname"],
             "dataset": batch["dataset"],
             "subset": batch["subset"],
         }
-        cplxity_fpath = self.save_dir.joinpath(self.cplxity_fname)
+
+        if fmt_kwargs is None:
+            fmt_kwargs = {}
+        cplxity_fname = self.cplxity_fname.format(**fmt_kwargs)
+        cplxity_fpath = self.save_dir.joinpath(cplxity_fname)
         save_to_yaml(cplxity_info, cplxity_fpath)
 
 
-def measure_complexity_with_deepspeed(
-    model: LightningModule,
+def _measure_complexity_with_deepspeed(
+    model: nn.Module,
     example: Any,
+    device: str | torch.device | None,
     verbose: int = 0,
 ) -> tuple[int, int, int]:
-    example = move_to_rec(example, device=model.device)
+    device = get_device(device)
+    example = move_to_rec(example, device=device)
     flops, macs, params = get_model_profile(
         model,
         kwargs=example,

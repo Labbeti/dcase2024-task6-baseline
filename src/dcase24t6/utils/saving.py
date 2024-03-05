@@ -45,7 +45,7 @@ def save_to_yaml(
     to_builtins: bool = True,
     resolve: bool = True,
     sort_keys: bool = False,
-    indent: int | None = 4,
+    indent: int | None = None,
     make_parents: bool = True,
     **kwargs,
 ) -> str:

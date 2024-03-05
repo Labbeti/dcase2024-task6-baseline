@@ -91,7 +91,7 @@ def train(cfg: DictConfig) -> None | float:
         "total_duration": pretty_total_duration,
         "config": OmegaConf.to_container(cfg, resolve=True),
     }
-    save_stats(cfg.save_dir, tokenizer, datamodule, model, job_info)
+    save_train_stats(cfg.save_dir, tokenizer, datamodule, model, job_info)
     pylog.info(
         f"Job results are saved in '{cfg.save_dir}'. (duration={pretty_total_duration})"
     )
@@ -136,7 +136,7 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     return callbacks
 
 
-def save_stats(
+def save_train_stats(
     save_dir: str | Path,
     tokenizer: AACTokenizer,
     datamodule: LightningDataModule,

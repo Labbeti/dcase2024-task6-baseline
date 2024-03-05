@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import copy
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -15,7 +16,10 @@ from dcase24t6.utils.type_checks import is_list_int
 
 
 class ResampleMeanCNext(nn.Module):
-    """Offline transform applied to audio inputs for trans_decoder model."""
+    """Offline transform applied to audio inputs for trans_decoder model.
+
+    This modules handle single example and batch of examples as input.
+    """
 
     def __init__(
         self,
@@ -57,22 +61,29 @@ class ResampleMeanCNext(nn.Module):
         return self.convnext.device
 
     def forward(self, batch: dict[str, Any]) -> dict[str, Any]:
+        batch = copy.copy(batch)
         audio = batch.pop("audio")
         sr = batch["sr"]
 
         if not isinstance(audio, Tensor):
             raise TypeError("Invalid audio input. (expected tensor)")
+        if isinstance(sr, Tensor):
+            sr = sr.tolist()
 
         if audio.ndim == 2 and isinstance(sr, int):
             is_batch = False
             audio_shape = torch.as_tensor([audio.shape], device=self.device)
             audio = audio.unsqueeze(dim=0)
             sr = [sr]
-        elif audio.ndim == 3 and is_list_int(sr):
+
+        elif audio.ndim == 3 and (is_list_int(sr)):
             is_batch = True
             audio_shape = batch.pop("audio_shape")
+
         else:
-            raise ValueError("Invalid audio or sr input. (expected tensor with 3 dims)")
+            raise ValueError(
+                "Invalid audio or sr input. (expected tensor with 3 dims and list of sampling rates or tensor with 2 dims and single sampling rate)"
+            )
 
         if not all(sr_i == sr[0] for sr_i in sr[1:]):
             raise ValueError(

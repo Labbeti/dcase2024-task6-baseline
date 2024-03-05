@@ -14,8 +14,10 @@ os.environ["HF_HUB_OFFLINE"] = "FALSE"
 import logging
 import os
 import os.path as osp
+import time
+from datetime import timedelta
 from pathlib import Path
-from typing import Callable, Iterable, Literal
+from typing import Any, Callable, Iterable, Literal, Mapping
 
 import hydra
 import nltk
@@ -25,10 +27,14 @@ from aac_metrics.download import download_metrics
 from hydra.utils import instantiate
 from lightning import seed_everything
 from omegaconf import DictConfig, OmegaConf
+from torch import nn
 from torch.utils.data.dataset import Subset
 from torchoutil.utils.hdf import pack_to_hdf
 
 from dcase24t6.callbacks.emissions import CustomEmissionTracker
+from dcase24t6.callbacks.op_counter import OpCounter
+from dcase24t6.utils.job import get_git_hash
+from dcase24t6.utils.saving import save_to_yaml
 
 pylog = logging.getLogger(__name__)
 
@@ -40,6 +46,8 @@ pylog = logging.getLogger(__name__)
 )
 def prepare(cfg: DictConfig) -> None:
     seed_everything(cfg.seed)
+    start_time = time.perf_counter()
+
     OmegaConf.resolve(cfg)
     OmegaConf.set_readonly(cfg, True)
     if cfg.verbose >= 1:
@@ -47,23 +55,43 @@ def prepare(cfg: DictConfig) -> None:
 
     pre_process = instantiate(cfg.pre_process)
 
+    op_counter = OpCounter(
+        save_dir=cfg.save_dir,
+        cplxity_fname="model_complexity_{dataset}_{subset}.yaml",
+        verbose=cfg.verbose,
+    )
     tracker: CustomEmissionTracker = instantiate(cfg.emission)
 
     tracker.start_task("prepare")
     prepare_data_metrics_models(
         dataroot=cfg.path.data_root,
-        subsets=cfg.subsets,
-        download_clotho=cfg.download_clotho,
-        force=cfg.force,
+        subsets=cfg.data.subsets,
+        download_clotho=cfg.data.download,
+        force=cfg.data.force,
         hdf_pattern=cfg.hdf_pattern,
         pre_process=pre_process,
         overwrite=cfg.overwrite,
         batch_size=cfg.batch_size,
         num_workers=cfg.num_workers,
         size_limit=cfg.size_limit,
+        op_counter=op_counter,
         verbose=cfg.verbose,
     )
     tracker.stop_and_save_task("prepare")
+
+    end_time = time.perf_counter()
+    total_duration_s = end_time - start_time
+    pretty_total_duration = str(timedelta(seconds=round(total_duration_s)))
+    job_info = {
+        "git_hash": get_git_hash(),
+        "total_duration_s": total_duration_s,
+        "total_duration": pretty_total_duration,
+        "config": OmegaConf.to_container(cfg, resolve=True),
+    }
+    save_prepare_stats(cfg.save_dir, job_info)
+    pylog.info(
+        f"Job results are saved in '{cfg.save_dir}'. (duration={pretty_total_duration})"
+    )
 
 
 def prepare_data_metrics_models(
@@ -77,6 +105,7 @@ def prepare_data_metrics_models(
     batch_size: int = 32,
     num_workers: int | Literal["auto"] = "auto",
     size_limit: int | None = None,
+    op_counter: OpCounter | None = None,
     verbose: int = 0,
 ) -> None:
     dataroot = Path(dataroot).resolve()
@@ -118,7 +147,16 @@ def prepare_data_metrics_models(
         )
         hdf_fpath = hdf_root.joinpath(hdf_fname)
 
+        if isinstance(pre_process, nn.Module) and op_counter is not None:
+            item = dataset[0]
+            example = {"batch": item}
+            complexities = op_counter.profile(example, pre_process)
+            op_counter.save(complexities, pre_process, item, fmt_kwargs=dict(dataset="clotho", subset=subset))  # type: ignore
+
         if hdf_fpath.exists() and not overwrite:
+            pylog.info(
+                f"Skipping {hdf_fname} because it already exists and {overwrite=}."
+            )
             continue
 
         pack_to_hdf(
@@ -130,6 +168,16 @@ def prepare_data_metrics_models(
             num_workers=num_workers,
             verbose=verbose,
         )
+
+
+def save_prepare_stats(
+    save_dir: str | Path,
+    job_info: Mapping[str, Any],
+) -> None:
+    save_dir = Path(save_dir).resolve()
+
+    job_info_fpath = save_dir.joinpath("job_info.yaml")
+    save_to_yaml(job_info, job_info_fpath)
 
 
 if __name__ == "__main__":

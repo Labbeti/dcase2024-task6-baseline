@@ -9,15 +9,17 @@ defaults:
 
 # --- Common args
 datetime: ${now:%Y.%m.%d-%H.%M.%S}  # str
-save_name: "${hydra:job.name}-${datetime}"
+save_dir: "${hydra:sweep.dir}/${hydra:sweep.subdir}"
+save_name: "${hydra:job.name}-${datetime}-clotho_${hydra:runtime.choices.pre_process}"
 seed: 42  # int | null
 verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 
 
 # --- Prepare args
-subsets: ["dev", "val", "eval", "dcase_aac_test", "dcase_aac_analysis"]
-download_clotho: true
-force: false
+data:
+  subsets: ["dev", "val", "eval", "dcase_aac_test", "dcase_aac_analysis"]
+  download: true
+  force: false
 
 hdf_pattern: "{dataset}_{subset}_${hydra:runtime.choices.pre_process}.hdf"  # str
 overwrite: false  # bool

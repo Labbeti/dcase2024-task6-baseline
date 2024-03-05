@@ -11,8 +11,8 @@ defaults:
 
 # --- Common args
 datetime: ${now:%Y.%m.%d-%H.%M.%S}  # str
-save_name: "${hydra:job.name}-${datetime}"
 save_dir: "${hydra:sweep.dir}/${hydra:sweep.subdir}"
+save_name: "${hydra:job.name}-${datetime}"
 seed: 42  # int | null
 verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 
