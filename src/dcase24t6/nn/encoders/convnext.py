@@ -229,21 +229,25 @@ class ConvNeXt(nn.Module):
         x = self.norm(x)  # global average+max pooling, (N, C, H, W) -> (N, C)
         return x
 
+    def __call__(self, *args, **kwds) -> dict[str, Tensor]:
+        return super().__call__(*args, **kwds)
+
     def forward(
         self,
-        input_: Tensor,
-        input_shapes: Tensor,
+        audio: Tensor,
+        audio_lens: Tensor,
         mixup_lambda: Tensor | None = None,
     ) -> dict[str, Tensor]:
         if self.waveform_input:
             input_time_dim = -1
-            x = self.spectrogram_extractor(
-                input_
-            )  # (batch_size, 1, time_steps, freq_bins)
-            x = self.logmel_extractor(x)  # (batch_size, 1, time_steps, mel_bins)
+            # x: (batch_size, wave_time_steps)
+            x = self.spectrogram_extractor(audio)
+            x = self.logmel_extractor(x)
         else:
-            x = input_
+            x = audio
             input_time_dim = -2
+
+        # x: (batch_size, 1, spec_time_steps, mel_bins)
 
         if self.training and self.use_speed_perturb:
             x = self.speed_perturb(x)
@@ -269,12 +273,10 @@ class ConvNeXt(nn.Module):
         output_dict = {}
         if self.return_frame_outputs:
             frame_embs = x
-
-            input_lens = input_shapes[:, input_time_dim]
-            reduction_factor = input_.shape[input_time_dim] // frame_embs.shape[-1]
+            reduction_factor = audio.shape[input_time_dim] // frame_embs.shape[-1]
 
             # frame_embs_lens = input_lens.div(reduction_factor, rounding_mode="trunc")
-            frame_embs_lens = input_lens.div(reduction_factor).round().int()
+            frame_embs_lens = audio_lens.div(reduction_factor).round().int()
 
             output_dict |= {
                 # (bsize, embed=768, n_frames=31)
