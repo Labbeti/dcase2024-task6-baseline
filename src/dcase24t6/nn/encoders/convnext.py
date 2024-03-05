@@ -85,8 +85,8 @@ class ConvNeXt(nn.Module):
         self,
         in_chans: int = 3,
         num_classes: int = 1000,
-        depths: Iterable[int] = [3, 3, 9, 3],
-        dims: Iterable[int] = [96, 192, 384, 768],
+        depths: Iterable[int] = (3, 3, 9, 3),
+        dims: Iterable[int] = (96, 192, 384, 768),
         drop_path_rate: float = 0.0,
         use_speed_perturb: bool = True,
         layer_scale_init_value: float = 1e-6,
@@ -99,12 +99,7 @@ class ConvNeXt(nn.Module):
         depths = list(depths)
         dims = list(dims)
 
-        super().__init__()
-        self.waveform_input = waveform_input
-        self.return_clip_outputs = return_clip_outputs
-        self.return_frame_outputs = return_frame_outputs
-        self.use_specaug = use_specaug
-
+        # --- Data augmentations
         window = "hann"
         center = True
         pad_mode = "reflect"
@@ -121,7 +116,7 @@ class ConvNeXt(nn.Module):
 
         # note: build these layers even if waveform_input is False
         # Spectrogram extractor
-        self.spectrogram_extractor = Spectrogram(
+        spectrogram_extractor = Spectrogram(
             n_fft=window_size,
             hop_length=hop_size,
             win_length=window_size,
@@ -131,7 +126,7 @@ class ConvNeXt(nn.Module):
             freeze_parameters=True,
         )
         # Logmel feature extractor
-        self.logmel_extractor = LogmelFilterBank(
+        logmel_extractor = LogmelFilterBank(
             sr=sample_rate,
             n_fft=window_size,
             n_mels=mel_bins,
@@ -144,63 +139,79 @@ class ConvNeXt(nn.Module):
         )
 
         # Spec augmenter
-        # freq_drop_width=8
         freq_drop_width = 28  # 28 = 8*224//64, in order to be the same as the nb of bins dropped in Cnn14
+
         if use_specaug:
-            self.spec_augmenter = SpecAugmentation(
+            spec_augmenter = SpecAugmentation(
                 time_drop_width=64,
                 time_stripes_num=2,
                 freq_drop_width=freq_drop_width,
                 freq_stripes_num=2,
             )
         else:
-            self.spec_augmenter = nn.Identity()
+            spec_augmenter = nn.Identity()
 
-        self.use_speed_perturb = use_speed_perturb
-        if self.use_speed_perturb:
-            self.speed_perturb = SpeedPerturbation(rates=(0.5, 1.5), p=0.5)
+        if use_speed_perturb:
+            speed_perturb = SpeedPerturbation(rates=(0.5, 1.5), p=0.5)
         else:
-            self.speed_perturb = nn.Identity()
+            speed_perturb = nn.Identity()
 
-        self.bn0 = nn.BatchNorm2d(224)
+        # --- Layers
+        bn0 = nn.BatchNorm2d(224)
 
-        self.downsample_layers = (
-            nn.ModuleList()
-        )  # stem and 3 intermediate downsampling conv layers
+        # stem and 3 intermediate downsampling conv layers
+        downsample_layers = nn.ModuleList()
 
         stem = nn.Sequential(
             nn.Conv2d(3, dims[0], kernel_size=(4, 4), stride=(4, 4)),
             CustomLayerNorm(dims[0], eps=1e-6, data_format="channels_first"),
         )
-        self.downsample_layers.append(stem)
-        for i in range(3):
+        downsample_layers.append(stem)
+
+        for i in range(len(dims) - 1):
             downsample_layer = nn.Sequential(
                 CustomLayerNorm(dims[i], eps=1e-6, data_format="channels_first"),
                 nn.Conv2d(dims[i], dims[i + 1], kernel_size=2, stride=2),
             )
-            self.downsample_layers.append(downsample_layer)
+            downsample_layers.append(downsample_layer)
 
-        self.stages = (
-            nn.ModuleList()
-        )  # 4 feature resolution stages, each consisting of multiple residual blocks
+        # 4 feature resolution stages, each consisting of multiple residual blocks
+        stages = nn.ModuleList()
         dp_rates = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
         cur = 0
-        for i in range(4):
-            stage = nn.Sequential(
-                *[
-                    CNextBlock(
-                        dim=dims[i],
-                        drop_path=dp_rates[cur + j],
-                        layer_scale_init_value=layer_scale_init_value,
-                    )
-                    for j in range(depths[i])
-                ]
-            )
-            self.stages.append(stage)
+        for i in range(len(dims)):
+            blocks = [
+                CNextBlock(
+                    dim=dims[i],
+                    drop_path=dp_rates[cur + j],
+                    layer_scale_init_value=layer_scale_init_value,
+                )
+                for j in range(depths[i])
+            ]
+            stage = nn.Sequential(*blocks)
+            stages.append(stage)
             cur += depths[i]
 
-        self.norm = nn.LayerNorm(dims[-1], eps=1e-6)  # final norm layer
-        self.head_audioset = nn.Linear(dims[-1], num_classes)
+        norm = nn.LayerNorm(dims[-1], eps=1e-6)  # final norm layer
+        head_audioset = nn.Linear(dims[-1], num_classes)
+
+        super().__init__()
+        self.waveform_input = waveform_input
+        self.return_clip_outputs = return_clip_outputs
+        self.return_frame_outputs = return_frame_outputs
+        self.spectrogram_extractor = spectrogram_extractor
+        self.logmel_extractor = logmel_extractor
+
+        self.use_specaug = use_specaug
+        self.spec_augmenter = spec_augmenter
+        self.use_speed_perturb = use_speed_perturb
+        self.speed_perturb = speed_perturb
+
+        self.bn0 = bn0
+        self.downsample_layers = downsample_layers
+        self.stages = stages
+        self.norm = norm
+        self.head_audioset = head_audioset
 
         self.apply(self._init_weights)
         self.head_audioset.weight.data.mul_(head_init_scale)
@@ -211,17 +222,18 @@ class ConvNeXt(nn.Module):
         return next(iter(self.parameters())).device
 
     def _init_weights(self, m) -> None:
-        # pass
         if isinstance(m, (nn.Conv2d, nn.Linear)):
             trunc_normal_(m.weight, std=0.02)
             nn.init.constant_(m.bias, 0)  # type: ignore
 
     def forward_features(self, x: Tensor):
-        for i in range(4):
+        for i in range(len(self.downsample_layers)):
             x = self.downsample_layers[i](x)
             x = self.stages[i](x)
 
         x = torch.mean(x, dim=3)
+
+        # Mean+Max pooling
         (x1, _) = torch.max(x, dim=2)
         x2 = torch.mean(x, dim=2)
         x = x1 + x2
@@ -229,25 +241,21 @@ class ConvNeXt(nn.Module):
         x = self.norm(x)  # global average+max pooling, (N, C, H, W) -> (N, C)
         return x
 
-    def __call__(self, *args, **kwds) -> dict[str, Tensor]:
-        return super().__call__(*args, **kwds)
-
     def forward(
         self,
         audio: Tensor,
-        audio_lens: Tensor,
+        audio_shapes: Tensor,
         mixup_lambda: Tensor | None = None,
     ) -> dict[str, Tensor]:
         if self.waveform_input:
             input_time_dim = -1
-            # x: (batch_size, wave_time_steps)
             x = self.spectrogram_extractor(audio)
             x = self.logmel_extractor(x)
         else:
-            x = audio
             input_time_dim = -2
+            x = audio
 
-        # x: (batch_size, 1, spec_time_steps, mel_bins)
+        # x: (batch_size, 1, time_steps, mel_bins)
 
         if self.training and self.use_speed_perturb:
             x = self.speed_perturb(x)
@@ -264,7 +272,7 @@ class ConvNeXt(nn.Module):
             x = do_mixup(x, mixup_lambda)
 
         # forward features with frame_embs
-        for i in range(4):
+        for i in range(len(self.downsample_layers)):
             x = self.downsample_layers[i](x)
             x = self.stages[i](x)
 
@@ -273,17 +281,28 @@ class ConvNeXt(nn.Module):
         output_dict = {}
         if self.return_frame_outputs:
             frame_embs = x
+
+            audio_lens = audio_shapes[:, input_time_dim]
             reduction_factor = audio.shape[input_time_dim] // frame_embs.shape[-1]
 
             # frame_embs_lens = input_lens.div(reduction_factor, rounding_mode="trunc")
             frame_embs_lens = audio_lens.div(reduction_factor).round().int()
 
+            frame_time_dim = 2
+            frame_embs_shape = torch.as_tensor(
+                [frame_embs_i.shape for frame_embs_i in frame_embs],
+                device=frame_embs.device,
+            )
+            frame_embs_shape[:, frame_time_dim - 1] = frame_embs_lens
+
             output_dict |= {
                 # (bsize, embed=768, n_frames=31)
                 "frame_embs": frame_embs,
+                # (bsize, 3)
+                "frame_embs_shape": frame_embs_shape,
                 # (bsize,)
                 "frame_embs_lens": frame_embs_lens,
-                "frame_time_dim": 2,
+                "frame_time_dim": frame_time_dim,
             }
 
         if self.return_clip_outputs:
