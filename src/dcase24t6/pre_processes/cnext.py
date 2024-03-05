@@ -63,9 +63,8 @@ class ResampleMeanCNext(nn.Module):
         return self.convnext.device
 
     def forward(self, batch: dict[str, Any]) -> dict[str, Any]:
+        batch, was_batch, _batch_size = batchify_audio(batch)
         batch = self.resample(batch)
-
-        batch, was_batch, _batch_size = batchify_audio(batch, self.input_time_dim)
 
         batch = copy.copy(batch)
         audio = batch["audio"]
