@@ -4,10 +4,10 @@
 import copy
 from typing import Any
 
-from torch import nn
+from torch import Tensor, nn
 from torchaudio.functional import resample
 
-from dcase24t6.pre_processes.common import batchify_audio, unbatchify_audio
+from dcase24t6.pre_processes.common import batchify, is_audio_batch, unbatchify
 
 
 class Resample(nn.Module):
@@ -20,13 +20,23 @@ class Resample(nn.Module):
         self.target_sr = target_sr
         self.input_time_dim = input_time_dim
 
-    def forward(self, batch: dict[str, Any]) -> dict[str, Any]:
-        batch, was_batch, batch_size = batchify_audio(batch, self.input_time_dim)
+    def forward(self, item_or_batch: dict[str, Any]) -> dict[str, Any]:
+        if is_audio_batch(item_or_batch):
+            return self.forward_batch(item_or_batch)
+        else:
+            item = item_or_batch
+            batch = batchify(item)
+            batch = self.forward_batch(batch)
+            item = unbatchify(batch)
+            return item
 
+    def forward_batch(self, batch: dict[str, Any]) -> dict[str, Any]:
         batch = copy.copy(batch)
         audio = batch["audio"]
-        audio_lens = batch["audio_lens"]
+        audio_shape = batch["audio_shape"]
         sr = batch["sr"]
+        if isinstance(sr, Tensor):
+            sr = sr.tolist()
 
         if not all(sr_i == sr[0] for sr_i in sr[1:]):
             raise ValueError(
@@ -36,13 +46,14 @@ class Resample(nn.Module):
         audio = resample(audio, sr[0], self.target_sr)
 
         resample_factor = self.target_sr / sr[0]
-        audio_lens = (audio_lens * resample_factor).round()
+        audio_lens = audio_shape[:, self.input_time_dim]
+        audio_lens = (audio_lens * resample_factor).round().int()
+        audio_shape[:, self.input_time_dim] = audio_lens
 
-        added = {
+        batch_size = audio.shape[0]
+        outputs = {
             "audio": audio,
-            "audio_lens": audio_lens,
+            "audio_shape": audio_shape,
             "sr": [self.target_sr] * batch_size,
         }
-        added = unbatchify_audio(added, was_batch, added.keys())
-        outputs = batch | added
-        return outputs
+        return batch | outputs

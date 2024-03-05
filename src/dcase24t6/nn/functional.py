@@ -3,7 +3,7 @@
 
 import math
 import warnings
-from typing import Callable
+from typing import Any, Callable
 
 import torch
 from torch import Tensor
@@ -109,3 +109,26 @@ def get_activation_fn(name: str) -> Callable[[Tensor], Tensor]:
         return F.gelu
     else:
         raise ValueError(f"Invalid argument {name=}. (expected one of {ACTIVATIONS})")
+
+
+def remove_index_nd(x: Tensor, index: int, dim: int = -1) -> Tensor:
+    """Remove values at specified index and dim.
+
+    Args:
+        x: Tensor of shape (..., D, ...)
+        index: Index of the value to be removed.
+        dim: Dimension to modified.
+
+    Returns:
+        Tensor of shape (..., D-1, ...)
+    """
+    size = x.shape[dim]
+    mask = torch.full((size,), True)
+    mask[index] = False
+    indices = torch.where(mask)[0]
+
+    slices: list[Any] = [slice(None)] * x.ndim
+    slices[dim] = indices
+    x = x[slices]
+
+    return x

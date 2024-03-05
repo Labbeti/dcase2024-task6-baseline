@@ -258,7 +258,6 @@ class Evaluator(Callback):
         save_to_yaml(
             corpus_scores,
             scores_fpath,
-            resolve=False,
             to_builtins=True,
             overwrite=False,
         )

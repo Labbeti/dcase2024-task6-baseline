@@ -29,7 +29,7 @@ from lightning import seed_everything
 from omegaconf import DictConfig, OmegaConf
 from torch import nn
 from torch.utils.data.dataset import Subset
-from torchoutil.utils.hdf import pack_to_hdf
+from torchoutil.utils.hdf import HDFDataset, pack_to_hdf
 
 from dcase24t6.callbacks.emissions import CustomEmissionTracker
 from dcase24t6.callbacks.op_counter import OpCounter
@@ -63,7 +63,7 @@ def prepare(cfg: DictConfig) -> None:
     tracker: CustomEmissionTracker = instantiate(cfg.emission)
 
     tracker.start_task("prepare")
-    prepare_data_metrics_models(
+    hdf_datasets = prepare_data_metrics_models(
         dataroot=cfg.path.data_root,
         subsets=cfg.data.subsets,
         download_clotho=cfg.data.download,
@@ -88,7 +88,7 @@ def prepare(cfg: DictConfig) -> None:
         "total_duration": pretty_total_duration,
         "config": OmegaConf.to_container(cfg, resolve=True),
     }
-    save_prepare_stats(cfg.save_dir, job_info)
+    save_prepare_stats(cfg.save_dir, hdf_datasets, job_info)
     pylog.info(
         f"Job results are saved in '{cfg.save_dir}'. (duration={pretty_total_duration})"
     )
@@ -107,7 +107,7 @@ def prepare_data_metrics_models(
     size_limit: int | None = None,
     op_counter: OpCounter | None = None,
     verbose: int = 0,
-) -> None:
+) -> dict[str, HDFDataset]:
     dataroot = Path(dataroot).resolve()
     subsets = list(subsets)
 
@@ -126,8 +126,7 @@ def prepare_data_metrics_models(
             verify_files=True,
         )
 
-    hdf_root = dataroot.joinpath("HDF")
-    os.makedirs(hdf_root, exist_ok=True)
+    hdf_datasets = {}
 
     for subset in subsets:
         dataset = Clotho(
@@ -145,11 +144,12 @@ def prepare_data_metrics_models(
             dataset="clotho",
             subset=subset,
         )
-        hdf_fpath = hdf_root.joinpath(hdf_fname)
+        hdf_fpath = dataroot.joinpath("HDF", hdf_fname)
+        os.makedirs(hdf_fpath.parent, exist_ok=True)
 
         if isinstance(pre_process, nn.Module) and op_counter is not None:
             item = dataset[0]
-            example = {"batch": item}
+            example = (item,)
             complexities = op_counter.profile(example, pre_process)
             op_counter.save(complexities, pre_process, item, fmt_kwargs=dict(dataset="clotho", subset=subset))  # type: ignore
 
@@ -159,7 +159,7 @@ def prepare_data_metrics_models(
             )
             continue
 
-        pack_to_hdf(
+        hdf_dataset = pack_to_hdf(
             dataset=dataset,  # type: ignore
             hdf_fpath=hdf_fpath,
             pre_transform=pre_process,
@@ -168,16 +168,25 @@ def prepare_data_metrics_models(
             num_workers=num_workers,
             verbose=verbose,
         )
+        hdf_datasets[hdf_fname] = hdf_dataset
+
+    return hdf_datasets
 
 
 def save_prepare_stats(
     save_dir: str | Path,
+    hdf_datasets: dict[str, HDFDataset],
     job_info: Mapping[str, Any],
 ) -> None:
     save_dir = Path(save_dir).resolve()
 
+    for hdf_fname, hdf_dataset in hdf_datasets.items():
+        hdf_attrs_fname = f"hdf_attrs_{hdf_fname}.yaml".replace(".hdf", "")
+        hdf_attrs_fpath = save_dir.joinpath(hdf_attrs_fname)
+        save_to_yaml(hdf_dataset.attrs, hdf_attrs_fpath)
+
     job_info_fpath = save_dir.joinpath("job_info.yaml")
-    save_to_yaml(job_info, job_info_fpath)
+    save_to_yaml(job_info, job_info_fpath, resolve=True)
 
 
 if __name__ == "__main__":

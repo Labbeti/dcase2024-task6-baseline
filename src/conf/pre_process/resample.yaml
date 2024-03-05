@@ -1,8 +1,6 @@
 # @package pre_process
 
-_target_: "dcase24t6.pre_processes.cnext.ResampleMeanCNext"
+_target_: "dcase24t6.pre_processes.resample.Resample"
 
-model_name_or_path: "cnext_bl"
-model_sr: 32_000
-offline: false
-device: "cuda_if_available"
+target_sr: 32_000
+input_time_dim: -1

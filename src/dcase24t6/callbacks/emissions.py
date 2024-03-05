@@ -79,7 +79,7 @@ class CustomEmissionTracker(Callback):
     def save_task(self, task: str, emissions: EmissionsData) -> None:
         emissions_fname = self.emissions_fname.format(task=task)
         emissions_fpath = self.save_dir.joinpath(emissions_fname)
-        save_to_yaml(emissions, emissions_fpath, resolve=False, make_parents=True)
+        save_to_yaml(emissions, emissions_fpath)
 
     def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.start_task("fit")

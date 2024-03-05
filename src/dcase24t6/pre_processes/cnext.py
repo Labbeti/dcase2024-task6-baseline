@@ -11,7 +11,8 @@ from torchoutil.nn.functional.get import get_device
 
 from dcase24t6.nn.encoders.convnext import convnext_tiny
 from dcase24t6.nn.encoders.convnext_ckpt_utils import load_cnext_state_dict
-from dcase24t6.pre_processes.common import batchify_audio, unbatchify_audio
+from dcase24t6.nn.functional import remove_index_nd
+from dcase24t6.pre_processes.common import batchify, is_audio_batch, unbatchify
 from dcase24t6.pre_processes.resample import Resample
 
 
@@ -62,25 +63,31 @@ class ResampleMeanCNext(nn.Module):
     def device(self) -> torch.device:
         return self.convnext.device
 
-    def forward(self, batch: dict[str, Any]) -> dict[str, Any]:
-        batch, was_batch, _batch_size = batchify_audio(batch)
+    def forward(self, item_or_batch: dict[str, Any]) -> dict[str, Any]:
+        if is_audio_batch(item_or_batch):
+            return self.forward_batch(item_or_batch)
+        else:
+            item = item_or_batch
+            batch = batchify(item)
+            batch = self.forward_batch(batch)
+            item = unbatchify(batch)
+            return item
+
+    def forward_batch(self, batch: dict[str, Any]) -> dict[str, Any]:
         batch = self.resample(batch)
 
         batch = copy.copy(batch)
-        audio = batch["audio"]
-        audio_lens = batch["audio_lens"]
+        audio = batch.pop("audio")
+        audio_shape = batch.pop("audio_shape")
 
         # Remove channel dim
-        audio = audio.mean(dim=1)
-        audio = audio.to(device=self.device)
+        channel_dim = 1
+        audio = audio.mean(dim=channel_dim)
+        audio_shape = remove_index_nd(audio_shape, channel_dim, dim=1)
 
         # audio: (bsize, reduced_time_steps)
-        # audio_lens: (bsize,)
+        # audio_shape: (bsize, 1)
 
-        added = self.convnext(audio, audio_lens)
-
-        added = unbatchify_audio(
-            added, was_batch, keys=["frame_embs", "frame_embs_lens", "sr"]
-        )
-        outputs = batch | added
-        return outputs
+        audio = audio.to(device=self.device)
+        outputs = self.convnext(audio, audio_shape)
+        return batch | outputs

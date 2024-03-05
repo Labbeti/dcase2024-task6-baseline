@@ -149,13 +149,13 @@ def save_train_stats(
     tokenizer.save(tok_fpath)
 
     datamodule_fpath = save_dir.joinpath("hparams_datamodule.yaml")
-    save_to_yaml(datamodule.hparams, datamodule_fpath)
+    save_to_yaml(datamodule.hparams, datamodule_fpath, resolve=True)
 
     model_fpath = save_dir.joinpath("hparams_model.yaml")
-    save_to_yaml(model.hparams, model_fpath)
+    save_to_yaml(model.hparams, model_fpath, resolve=True)
 
     job_info_fpath = save_dir.joinpath("job_info.yaml")
-    save_to_yaml(job_info, job_info_fpath)
+    save_to_yaml(job_info, job_info_fpath, resolve=True)
 
 
 if __name__ == "__main__":

@@ -75,7 +75,7 @@ class OpCounter(Callback):
 
     def profile(
         self,
-        example: Any,
+        example: Mapping[str, Any] | tuple,
         model: nn.Module,
         device: str | torch.device | None = None,
     ) -> dict[str, Any]:
@@ -137,15 +137,27 @@ class OpCounter(Callback):
 
 def _measure_complexity_with_deepspeed(
     model: nn.Module,
-    example: Any,
+    example: Mapping[str, Any] | tuple,
     device: str | torch.device | None,
     verbose: int = 0,
 ) -> tuple[int, int, int]:
+    if isinstance(example, Mapping):
+        args = []
+        kwargs = example
+    elif isinstance(example, tuple):
+        args = example
+        kwargs = {}
+    else:
+        raise TypeError(
+            f"Invalid argument type {type(example)=}. (expected mapping or tuple)"
+        )
+
     device = get_device(device)
     example = move_to_rec(example, device=device)
     flops, macs, params = get_model_profile(
         model,
-        kwargs=example,
+        args=args,
+        kwargs=kwargs,
         print_profile=verbose >= 2,
         detailed=True,
         as_string=False,
