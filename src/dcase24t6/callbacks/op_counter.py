@@ -60,6 +60,8 @@ class OpCounter(Callback):
         if "mult_captions" in batch and "captions" not in batch:
             batch["captions"] = batch["mult_captions"][:, 0]  # type: ignore
 
+        batch = move_to_rec(batch, device=pl_module.device)  # type: ignore
+
         METHODS = ("forcing", "generate")
         complexities = {}
         for method in METHODS:
