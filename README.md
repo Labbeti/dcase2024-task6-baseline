@@ -91,18 +91,47 @@ The architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.p
 | Label smoothing | 0.2 | `model.label_smoothing` |
 | Mixup alpha | 0.4 | `model.mixup_alpha` |
 
-<!-- TODO: model size -->
+<!--
+29388303
+11914777
+41303080
+
+55_506_514_080
+245_408_256
+55751922336
+
+55_506_514_080
+1_044_628_224
+56_551_142_304
+-->
+
+### Complexity / number of operations
+
+Here is also the number of parameters and multiply-accumulate operations (MACs) during training and inference:
+
+| Name | Model part | Value |
+| --- | --- | --- |
+| Parameters (M) | encoder | 29.4 |
+| Parameters (M) | decoder | 11.9 |
+| Parameters (M) | total | 41.3 |
+| Train MACs (G) | encoder | 55.5 |
+| Train MACs (G) | decoder | 0.2 |
+| Train MACs (G) | total | 55.8 |
+| Inference MACs (G) | encoder | 55.5 |
+| Inference MACs (G) | decoder | 1.0 |
+| Inference MACs (G) | total | 56.6 |
+
 
 ## Tips
-- **Modify the model**
+- **Modify the model**.
 The model class is located in `src/dcase24t6/models/trans_decoder.py`. It is recommanded to create another class and conf to keep different models architectures.
 The loss is computed in the method called `training_step`. You can also modify the model architecture in the method called `setup`.
 
-- **Extract different audio features**
+- **Extract different audio features**.
 For that, you can add a new pre-process function in `src/dcase24t6/pre_processes` and the related conf in `src/conf/pre_process`. Then, re-run `dcase24t6-prepare pre_process=YOUR_PROCESS download_clotho=false` to create new HDF files with your own features.
 To train a new model on these features, you can specify the HDF files required in `dcase24t6-train datamodule.train_hdfs=clotho_dev_YOUR_PROCESS.hdf datamodule.val_hdfs=... datamodule.test_hdfs=... datamodule.predict_hdfs=...`. Depending on the features extracted, some parameters could be modified in the model to handle them.
 
-- **Using as a package**
+- **Using as a package**.
 If you do not want ot use the entire codebase but only parts of it, you can install it as a package using:
 
 ```bash
@@ -117,7 +146,7 @@ Then you will be able to import any object from the code like for example `from 
 
 
 ## Additional information
-- The code has been made for Ubuntu 20.04 and should work on more recent Ubuntu versions.
+- The code has been made for Ubuntu 20.04 and should work on more recent Ubuntu versions and Linux-based distributions.
 - The GPU used is NVIDIA GeForce RTX 2080 Ti. Training lasts for approximatively 2 hours in the default setting.
 - In this code, the clotho subsets are naming following the Clotho convention, not DCASE convention. See more information [on this page](https://aac-datasets.readthedocs.io/en/stable/data_subsets.html#clotho).
 
