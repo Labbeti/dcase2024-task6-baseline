@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 import hydra
+from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from lightning import (
     Callback,
@@ -90,6 +91,7 @@ def train(cfg: DictConfig) -> None | float:
         "total_duration_s": total_duration_s,
         "total_duration": pretty_total_duration,
         "config": OmegaConf.to_container(cfg, resolve=True),
+        "hydra": HydraConfig.get(),
     }
     save_train_stats(cfg.save_dir, tokenizer, datamodule, model, job_info)
     pylog.info(
