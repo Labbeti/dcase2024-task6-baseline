@@ -10,6 +10,7 @@ def print_usage() -> None:
 
     Subcommands:
         train \t Train a model.
+        test \t Test a pretrained model.
         prepare \t Install data, metrics and models.
         info \t Show installation information.
     """
