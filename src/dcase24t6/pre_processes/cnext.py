@@ -24,7 +24,7 @@ class ResampleMeanCNext(nn.Module):
 
     def __init__(
         self,
-        model_name_or_path: str | Path,
+        model_name_or_path: str | Path = "cnext_bl",
         model_sr: int = 32_000,
         offline: bool = False,
         device: str | torch.device | None = "cuda_if_available",
@@ -80,10 +80,13 @@ class ResampleMeanCNext(nn.Module):
         audio = batch.pop("audio")
         audio_shape = batch.pop("audio_shape")
 
+        # audio: (bsize, channels, reduced_time_steps)
+        # audio_shape: (bsize, 2)
+
         # Remove channel dim
         channel_dim = 1
         audio = audio.mean(dim=channel_dim)
-        audio_shape = remove_index_nd(audio_shape, channel_dim, dim=1)
+        audio_shape = remove_index_nd(audio_shape, index=channel_dim - 1, dim=1)
 
         # audio: (bsize, reduced_time_steps)
         # audio_shape: (bsize, 1)

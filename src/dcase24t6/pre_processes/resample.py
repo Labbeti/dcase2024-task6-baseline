@@ -32,22 +32,26 @@ class Resample(nn.Module):
 
     def forward_batch(self, batch: dict[str, Any]) -> dict[str, Any]:
         batch = copy.copy(batch)
-        audio = batch["audio"]
-        audio_shape = batch["audio_shape"]
+        audio: Tensor = batch["audio"]
+        audio_shape: Tensor = batch["audio_shape"]
         sr = batch["sr"]
         if isinstance(sr, Tensor):
             sr = sr.tolist()
+        sr: list[int]
 
         if not all(sr_i == sr[0] for sr_i in sr[1:]):
             raise ValueError(
                 f"Cannot transform a batch with audio sampled at different rates. (found {sr=})"
             )
 
+        src_maxlen = audio.shape[self.input_time_dim]
         audio = resample(audio, sr[0], self.target_sr)
+        tgt_maxlen = audio.shape[self.input_time_dim]
 
-        resample_factor = self.target_sr / sr[0]
+        reduction_factor = tgt_maxlen / src_maxlen
+
         audio_lens = audio_shape[:, self.input_time_dim]
-        audio_lens = (audio_lens * resample_factor).round().int()
+        audio_lens = (audio_lens * reduction_factor).round().int()
         audio_shape[:, self.input_time_dim] = audio_lens
 
         batch_size = audio.shape[0]

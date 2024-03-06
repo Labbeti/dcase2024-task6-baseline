@@ -12,7 +12,6 @@ from dcase24t6.utils.type_checks import is_list_int
 
 class BatchLike(TypedDict):
     audio: Tensor
-    audio_shape: Tensor
     sr: list[int] | Tensor
 
 
@@ -38,7 +37,8 @@ def is_audio_batch(item_or_batch: dict[str, Any]) -> bool:
 
 
 def batchify(item: dict[str, Any]) -> dict[str, list | Tensor]:
-    item = add_audio_shape(item)
+    """Transform a item dict to a batch dict."""
+    item = add_audio_shape_to_item(item)
     result = {}
     for k, v in item.items():
         if isinstance(v, Tensor):
@@ -58,7 +58,7 @@ def unbatchify(batch: dict[str, list | Tensor]) -> dict[str, Any]:
     return result
 
 
-def add_audio_shape(item: dict[str, Any]) -> dict[str, Any]:
+def add_audio_shape_to_item(item: dict[str, Any]) -> dict[str, Any]:
     if "audio_shape" in item:
         return item
 

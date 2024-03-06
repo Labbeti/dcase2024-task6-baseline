@@ -12,6 +12,7 @@ ipython==8.22.1
 lightning==2.2.0
 nltk==3.8.1
 pre-commit==3.6.2
+pytest~=8.0.2
 PyYAML==6.0.1
 tensorboard==2.16.2
 tokenizers==0.15.2

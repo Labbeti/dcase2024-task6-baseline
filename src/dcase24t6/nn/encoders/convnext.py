@@ -248,10 +248,12 @@ class ConvNeXt(nn.Module):
         mixup_lambda: Tensor | None = None,
     ) -> dict[str, Tensor]:
         if self.waveform_input:
+            assert audio.ndim == 2, f"{audio.ndim=}"
             input_time_dim = -1
             x = self.spectrogram_extractor(audio)
             x = self.logmel_extractor(x)
         else:
+            assert audio.ndim == 4, f"{audio.ndim=}"
             input_time_dim = -2
             x = audio
 
@@ -281,14 +283,15 @@ class ConvNeXt(nn.Module):
         output_dict = {}
         if self.return_frame_outputs:
             frame_embs = x
+            # (bsize, emb_size=768, n_frames=31)
+            frame_time_dim = 2
 
             audio_lens = audio_shapes[:, input_time_dim]
-            reduction_factor = audio.shape[input_time_dim] // frame_embs.shape[-1]
+            reduction_factor = (
+                frame_embs.shape[frame_time_dim] / audio.shape[input_time_dim]
+            )
+            frame_embs_lens = (audio_lens * reduction_factor).round().int()
 
-            # frame_embs_lens = input_lens.div(reduction_factor, rounding_mode="trunc")
-            frame_embs_lens = audio_lens.div(reduction_factor).round().int()
-
-            frame_time_dim = 2
             frame_embs_shape = torch.as_tensor(
                 [frame_embs_i.shape for frame_embs_i in frame_embs],
                 device=frame_embs.device,
@@ -302,6 +305,7 @@ class ConvNeXt(nn.Module):
                 "frame_embs_shape": frame_embs_shape,
                 # (bsize,)
                 "frame_embs_lens": frame_embs_lens,
+                # ()
                 "frame_time_dim": frame_time_dim,
             }
 
