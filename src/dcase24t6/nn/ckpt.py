@@ -5,7 +5,7 @@ from torchoutil.utils.ckpt import ModelCheckpointRegister
 
 # Zenodo link : https://zenodo.org/record/8020843
 # Hash type : md5
-CNextRegister = ModelCheckpointRegister(
+CNEXT_REGISTER = ModelCheckpointRegister(
     infos={
         "cnext_bl": {
             "architecture": "ConvNeXt",

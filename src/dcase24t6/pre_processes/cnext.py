@@ -9,7 +9,7 @@ import torch
 from torch import nn
 from torchoutil.nn.functional.get import get_device
 
-from dcase24t6.nn.ckpt import CNextRegister
+from dcase24t6.nn.ckpt import CNEXT_REGISTER
 from dcase24t6.nn.encoders.convnext import convnext_tiny
 from dcase24t6.nn.functional import remove_index_nd
 from dcase24t6.pre_processes.common import batchify, is_audio_batch, unbatchify
@@ -42,7 +42,7 @@ class ResampleMeanCNext(nn.Module):
             return_frame_outputs=True,
             return_clip_outputs=True,
         )
-        state_dict = CNextRegister.load_state_dict(
+        state_dict = CNEXT_REGISTER.load_state_dict(
             model_name_or_path,
             device="cpu",
             offline=offline,
@@ -53,11 +53,12 @@ class ResampleMeanCNext(nn.Module):
             p.requires_grad_(False)
         convnext = convnext.eval()
         convnext = convnext.to(device=device)
+        resample = Resample(model_sr, input_time_dim)
 
         super().__init__()
         self.convnext = convnext
+        self.resample = resample
         self.input_time_dim = input_time_dim
-        self.resample = Resample(model_sr, input_time_dim)
 
     @property
     def device(self) -> torch.device:
