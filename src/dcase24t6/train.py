@@ -86,13 +86,14 @@ def train(cfg: DictConfig) -> None | float:
     end_time = time.perf_counter()
     total_duration_s = end_time - start_time
     pretty_total_duration = str(timedelta(seconds=round(total_duration_s)))
+    hydra_cfg: dict[str, Any] = OmegaConf.to_container({"hydra": HydraConfig.get()}, resolve=True)  # type: ignore
     job_info = {
         "git_hash": get_git_hash(),
         "total_duration_s": total_duration_s,
         "total_duration": pretty_total_duration,
         "config": OmegaConf.to_container(cfg, resolve=True),
-        "hydra": HydraConfig.get(),
-    }
+    } | hydra_cfg
+
     save_train_stats(cfg.save_dir, tokenizer, datamodule, model, job_info)
     pylog.info(
         f"Job results are saved in '{cfg.save_dir}'. (duration={pretty_total_duration})"
