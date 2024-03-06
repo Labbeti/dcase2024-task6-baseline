@@ -39,8 +39,7 @@ class NamedTupleInstance(Protocol):
     _fields: tuple[str, ...]
     _fields_defaults: dict[str, Any]
 
-    def _asdict(self) -> dict[str, Any]:
-        ...
+    def _asdict(self) -> dict[str, Any]: ...
 
 
 def save_to_yaml(
