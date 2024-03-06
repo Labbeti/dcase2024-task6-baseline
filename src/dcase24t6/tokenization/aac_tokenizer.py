@@ -231,12 +231,14 @@ class AACTokenizer:
         return aac_tokenizer
 
     def save(self, path: str | Path, pretty: bool = True) -> None:
+        """Save tokenizer to JSON file."""
         path = Path(path).resolve()
         content = self.to_str(pretty=pretty)
         path.write_text(content)
 
     @classmethod
     def from_file(cls, path: str | Path) -> "AACTokenizer":
+        """Load tokenizer from JSON file."""
         path = Path(path).resolve()
         content = path.read_text()
         aac_tokenizer = cls.from_str(content)
