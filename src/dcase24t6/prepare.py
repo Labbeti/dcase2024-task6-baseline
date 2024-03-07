@@ -31,8 +31,8 @@ from torch import nn
 from torch.utils.data.dataset import Subset
 from torchoutil.utils.hdf import HDFDataset, pack_to_hdf
 
+from dcase24t6.callbacks.complexity import ComplexityProfiler
 from dcase24t6.callbacks.emissions import CustomEmissionTracker
-from dcase24t6.callbacks.op_counter import OpCounter
 from dcase24t6.utils.job import get_git_hash
 from dcase24t6.utils.saving import save_to_yaml
 
@@ -56,7 +56,7 @@ def prepare(cfg: DictConfig) -> None:
     if cfg.verbose >= 1:
         pylog.info(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
 
-    op_counter = OpCounter(
+    complexity_profiler = ComplexityProfiler(
         save_dir=cfg.save_dir,
         cplxity_fname="model_complexity_{dataset}_{subset}.yaml",
         verbose=cfg.verbose,
@@ -75,7 +75,7 @@ def prepare(cfg: DictConfig) -> None:
         batch_size=cfg.batch_size,
         num_workers=cfg.num_workers,
         size_limit=cfg.size_limit,
-        op_counter=op_counter,
+        complexity_profiler=complexity_profiler,
         verbose=cfg.verbose,
     )
 
@@ -108,7 +108,7 @@ def prepare_data_metrics_models(
     batch_size: int = 32,
     num_workers: int | Literal["auto"] = "auto",
     size_limit: int | None = None,
-    op_counter: OpCounter | None = None,
+    complexity_profiler: ComplexityProfiler | None = None,
     verbose: int = 0,
 ) -> dict[str, HDFDataset]:
     dataroot = Path(dataroot).resolve()
@@ -150,11 +150,11 @@ def prepare_data_metrics_models(
         hdf_fpath = dataroot.joinpath("HDF", hdf_fname)
         os.makedirs(hdf_fpath.parent, exist_ok=True)
 
-        if isinstance(pre_process, nn.Module) and op_counter is not None:
+        if isinstance(pre_process, nn.Module) and complexity_profiler is not None:
             item = dataset[0]
             example = (item,)
-            complexities = op_counter.profile(example, pre_process)
-            op_counter.save(complexities, pre_process, item, fmt_kwargs=dict(dataset="clotho", subset=subset))  # type: ignore
+            complexities = complexity_profiler.profile(example, pre_process)
+            complexity_profiler.save(complexities, pre_process, item, fmt_kwargs=dict(dataset="clotho", subset=subset))  # type: ignore
 
         if hdf_fpath.exists() and not overwrite:
             pylog.info(

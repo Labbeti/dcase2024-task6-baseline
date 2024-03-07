@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import time
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Iterable, Literal, Mapping, TypedDict
 
 import torch
-from deepspeed.profiling.flops_profiler import get_model_profile
+from deepspeed.profiling.flops_profiler import FlopsProfiler
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks.callback import Callback
 from torch import nn
@@ -20,7 +19,15 @@ from dcase24t6.utils.type_checks import is_list_str
 pylog = logging.getLogger(__name__)
 
 
-class OpCounter(Callback):
+class ProfileOutput(TypedDict):
+    model_output: Any
+    params: int
+    macs: int
+    flops: int
+    duration: float
+
+
+class ComplexityProfiler(Callback):
     def __init__(
         self,
         save_dir: str | Path,
@@ -70,9 +77,12 @@ class OpCounter(Callback):
                 "method": method,
             }
             example_complexities = self.profile(example, pl_module, pl_module.device)
+            example_complexities.pop("model_output")  # type: ignore
+
             complexities |= {
                 f"{method}_{k}": v for k, v in example_complexities.items()
             }
+
         self.save(complexities, pl_module, batch)
 
     def profile(
@@ -80,34 +90,20 @@ class OpCounter(Callback):
         example: Mapping[str, Any] | tuple,
         model: nn.Module,
         device: str | torch.device | None = None,
-    ) -> dict[str, Any]:
-        if device is None and hasattr(model, "device"):
-            device = model.device
-        else:
-            model = model.to(device=device)
-
-        complexities = {}
-
-        start = time.perf_counter()
+    ) -> ProfileOutput:
         match self.backend:
             case "deepspeed":
-                flops, macs, params = _measure_complexity_with_deepspeed(
+                output = _measure_complexity_with_deepspeed(
                     model=model,
                     example=example,
                     device=device,
                     verbose=self.verbose,
                 )
+
             case backend:
                 raise ValueError(f"Invalid argument {backend=}.")
-        end = time.perf_counter()
 
-        complexities = {
-            "params": params,
-            "flops": flops,
-            "macs": macs,
-            "duration": end - start,
-        }
-        return complexities
+        return output
 
     def save(
         self,
@@ -141,8 +137,22 @@ def _measure_complexity_with_deepspeed(
     model: nn.Module,
     example: Mapping[str, Any] | tuple,
     device: str | torch.device | None,
+    module_depth: int = -1,
+    top_modules: int = 1,
+    warm_up: int = 1,
+    output_file: str | Path | None = None,
+    ignore_modules: Iterable[type] | None = None,
     verbose: int = 0,
-) -> tuple[int, int, int]:
+) -> ProfileOutput:
+    if device is None and hasattr(model, "device"):
+        device = model.device
+        device = get_device(device)
+    else:
+        device = get_device(device)
+        model = model.to(device=device)
+
+    example = move_to_rec(example, device=device)
+
     if isinstance(example, Mapping):
         args = []
         kwargs = example
@@ -154,14 +164,47 @@ def _measure_complexity_with_deepspeed(
             f"Invalid argument type {type(example)=}. (expected mapping or tuple)"
         )
 
-    device = get_device(device)
-    example = move_to_rec(example, device=device)
-    flops, macs, params = get_model_profile(
-        model,
-        args=args,
-        kwargs=kwargs,
-        print_profile=verbose >= 2,
-        detailed=True,
-        as_string=False,
-    )
-    return flops, macs, params  # type: ignore
+    assert (len(args) > 0) or (
+        len(kwargs) > 0
+    ), "args and/or kwargs must be specified if input_shape is None"
+
+    prof = FlopsProfiler(model)
+    model.eval()
+
+    if verbose >= 2:
+        pylog.info("Flops profiler warming-up...")
+    for _ in range(warm_up):
+        if kwargs:
+            _ = model(*args, **kwargs)
+        else:
+            _ = model(*args)
+
+    prof.start_profile(ignore_list=ignore_modules)
+
+    if kwargs:
+        output = model(*args, **kwargs)
+    else:
+        output = model(*args)
+
+    flops: int = prof.get_total_flops()  # type: ignore
+    macs: int = prof.get_total_macs()  # type: ignore
+    params: int = prof.get_total_params()  # type: ignore
+    duration: float = prof.get_total_duration()  # type: ignore
+
+    if verbose >= 2:
+        prof.print_model_profile(
+            profile_step=warm_up,
+            module_depth=module_depth,
+            top_modules=top_modules,
+            detailed=verbose >= 2,
+            output_file=output_file,
+        )
+    prof.end_profile()
+
+    return {
+        "model_output": output,
+        "flops": flops,
+        "macs": macs,
+        "params": params,
+        "duration": duration,
+    }

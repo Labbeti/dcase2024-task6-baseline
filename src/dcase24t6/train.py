@@ -38,9 +38,9 @@ from lightning.pytorch.callbacks import (
 from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 
+from dcase24t6.callbacks.complexity import ComplexityProfiler
 from dcase24t6.callbacks.emissions import CustomEmissionTracker
 from dcase24t6.callbacks.evaluator import Evaluator
-from dcase24t6.callbacks.op_counter import OpCounter
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
 from dcase24t6.utils.job import get_git_hash
 from dcase24t6.utils.saving import save_to_yaml
@@ -109,13 +109,13 @@ def train(cfg: DictConfig) -> None | float:
 def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     evaluator: Evaluator = instantiate(cfg.evaluator)
     model_summary = ModelSummary(max_depth=1)
-    op_counter = OpCounter(cfg.save_dir, verbose=cfg.verbose)
+    complexity_profiler = ComplexityProfiler(cfg.save_dir, verbose=cfg.verbose)
     lr_monitor = LearningRateMonitor()
 
     callbacks: dict[str, Callback] = {
         "evaluator": evaluator,
         "model_summary": model_summary,
-        "op_counter": op_counter,
+        "complexity_profiler": complexity_profiler,
         "lr_monitor": lr_monitor,
     }
 
