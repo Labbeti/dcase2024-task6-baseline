@@ -3,7 +3,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from codecarbon.emissions_tracker import (
     EmissionsData,
@@ -15,8 +15,6 @@ from lightning.pytorch.callbacks import Callback
 
 import dcase24t6
 from dcase24t6.utils.saving import save_to_yaml
-
-EmissionStage = Literal["fit", "test", "predict"]
 
 
 class CustomEmissionTracker(Callback):
@@ -68,16 +66,31 @@ class CustomEmissionTracker(Callback):
         if self.tracker is None:
             return None
         else:
-            return self.tracker.stop_task(task)
+            emissions = self.tracker.stop_task(task)
+            return emissions
 
-    def stop_and_save_task(self, task: str) -> EmissionsData | None:
+    def stop_and_save_task(
+        self,
+        task: str,
+        trainer: Trainer | None = None,
+    ) -> EmissionsData | None:
         emissions = self.stop_task(task)
         if emissions is None:
             return emissions
-        self.save_task(task, emissions)
+        self.save_task(task, emissions, trainer)
 
-    def save_task(self, task: str, emissions: EmissionsData) -> None:
-        emissions_fname = self.emissions_fname.format(task=task)
+    def save_task(
+        self,
+        task: str,
+        emissions: EmissionsData,
+        trainer: Trainer | None = None,
+    ) -> None:
+        if trainer is None:
+            epoch = None
+        else:
+            epoch = trainer.max_epochs
+
+        emissions_fname = self.emissions_fname.format(task=task, epoch=epoch)
         emissions_fpath = self.save_dir.joinpath(emissions_fname)
         save_to_yaml(emissions, emissions_fpath)
 
