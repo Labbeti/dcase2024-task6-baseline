@@ -172,7 +172,7 @@ class HDFDatamodule(LightningDataModule):
         flat_references = []
         for hdf_fname in hdf_fnames:
             hdf_fpath = self.root.joinpath("HDF", hdf_fname)
-            dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
+            dataset = HDFDataset(hdf_fpath, return_added_columns=True)
 
             # note: get raw captions before transform
             flat_references += [ref for refs in dataset[:, "captions"] for ref in refs]
@@ -224,7 +224,7 @@ class HDFDatamodule(LightningDataModule):
         datasets = {}
         for hdf_fname in hdf_fnames:
             hdf_fpath = self.root.joinpath("HDF", hdf_fname)
-            dataset = HDFDataset(hdf_fpath, return_shape_columns=True)
+            dataset = HDFDataset(hdf_fpath, return_added_columns=True)
             dataset = TransformWrapper(dataset, transform)
             datasets[hdf_fname] = dataset
 
