@@ -46,23 +46,24 @@ pylog = logging.getLogger(__name__)
 )
 def prepare(cfg: DictConfig) -> None:
     seed_everything(cfg.seed)
+
     start_time = time.perf_counter()
+    global_tracker: CustomEmissionTracker = instantiate(cfg.emission)
+    global_tracker.start_task("total")
 
     OmegaConf.resolve(cfg)
     OmegaConf.set_readonly(cfg, True)
     if cfg.verbose >= 1:
         pylog.info(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
 
-    pre_process = instantiate(cfg.pre_process)
-
     op_counter = OpCounter(
         save_dir=cfg.save_dir,
         cplxity_fname="model_complexity_{dataset}_{subset}.yaml",
         verbose=cfg.verbose,
     )
-    tracker: CustomEmissionTracker = instantiate(cfg.emission)
 
-    tracker.start_task("prepare")
+    pre_process = instantiate(cfg.pre_process)
+
     hdf_datasets = prepare_data_metrics_models(
         dataroot=cfg.path.data_root,
         subsets=cfg.data.subsets,
@@ -77,9 +78,11 @@ def prepare(cfg: DictConfig) -> None:
         op_counter=op_counter,
         verbose=cfg.verbose,
     )
-    tracker.stop_and_save_task("prepare")
 
+    # Save job info & stats
+    global_tracker.stop_and_save_task("total")
     end_time = time.perf_counter()
+
     total_duration_s = end_time - start_time
     pretty_total_duration = str(timedelta(seconds=round(total_duration_s)))
     job_info = {

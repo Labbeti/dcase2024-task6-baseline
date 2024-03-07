@@ -55,7 +55,10 @@ pylog = logging.getLogger(__name__)
 )
 def train(cfg: DictConfig) -> None | float:
     seed_everything(cfg.seed)
+
     start_time = time.perf_counter()
+    global_tracker: CustomEmissionTracker = instantiate(cfg.emission)
+    global_tracker.start_task("total")
 
     OmegaConf.resolve(cfg)
     OmegaConf.set_readonly(cfg, True)
@@ -83,10 +86,12 @@ def train(cfg: DictConfig) -> None | float:
     trainer.predict(model, datamodule=datamodule)
 
     # Save job info & stats
+    global_tracker.stop_and_save_task("total", trainer)
     end_time = time.perf_counter()
+
     total_duration_s = end_time - start_time
     pretty_total_duration = str(timedelta(seconds=round(total_duration_s)))
-    hydra_cfg: dict[str, Any] = OmegaConf.to_container({"hydra": HydraConfig.get()}, resolve=True)  # type: ignore
+    hydra_cfg: dict[str, Any] = {"hydra": OmegaConf.to_container(HydraConfig.get())}  # type: ignore
     job_info = {
         "git_hash": get_git_hash(),
         "total_duration_s": total_duration_s,
@@ -95,6 +100,7 @@ def train(cfg: DictConfig) -> None | float:
     } | hydra_cfg
 
     save_train_stats(cfg.save_dir, tokenizer, datamodule, model, job_info)
+
     pylog.info(
         f"Job results are saved in '{cfg.save_dir}'. (duration={pretty_total_duration})"
     )
@@ -105,14 +111,12 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     model_summary = ModelSummary(max_depth=1)
     op_counter = OpCounter(cfg.save_dir, verbose=cfg.verbose)
     lr_monitor = LearningRateMonitor()
-    emission_tracker: CustomEmissionTracker = instantiate(cfg.emission)
 
     callbacks: dict[str, Callback] = {
         "evaluator": evaluator,
         "model_summary": model_summary,
         "op_counter": op_counter,
         "lr_monitor": lr_monitor,
-        "emission_tracker": emission_tracker,
     }
 
     checkpoint: ModelCheckpoint | None = instantiate(cfg.ckpt)
@@ -152,13 +156,13 @@ def save_train_stats(
     tokenizer.save(tok_fpath)
 
     datamodule_fpath = save_dir.joinpath("hparams_datamodule.yaml")
-    save_to_yaml(datamodule.hparams, datamodule_fpath, resolve=True)
+    save_to_yaml(datamodule.hparams, datamodule_fpath)
 
     model_fpath = save_dir.joinpath("hparams_model.yaml")
-    save_to_yaml(model.hparams, model_fpath, resolve=True)
+    save_to_yaml(model.hparams, model_fpath)
 
     job_info_fpath = save_dir.joinpath("job_info.yaml")
-    save_to_yaml(job_info, job_info_fpath, resolve=True)
+    save_to_yaml(job_info, job_info_fpath)
 
 
 if __name__ == "__main__":
