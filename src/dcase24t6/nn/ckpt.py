@@ -20,4 +20,5 @@ CNEXT_REGISTER = ModelCheckpointRegister(
             "fname": "convnext_tiny_471mAP.pth",
         },
     },
+    state_dict_key="model",
 )
