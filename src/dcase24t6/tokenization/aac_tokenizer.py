@@ -5,15 +5,17 @@ import json
 from pathlib import Path
 from typing import Any, ClassVar, Sequence, TypeGuard
 
-from tokenizers import Encoding, Tokenizer
+from tokenizers import Encoding, Regex, Tokenizer
 from tokenizers.models import WordLevel
-from tokenizers.normalizers import Lowercase, Normalizer
+from tokenizers.normalizers import Lowercase, Normalizer, Replace
 from tokenizers.normalizers import Sequence as NormalizerSequence
 from tokenizers.normalizers import Strip, StripAccents
 from tokenizers.pre_tokenizers import PreTokenizer
 from tokenizers.pre_tokenizers import Sequence as PreTokenizerSequence
 from tokenizers.pre_tokenizers import Whitespace
-from tokenizers.processors import PostProcessor, TemplateProcessing
+from tokenizers.processors import PostProcessor
+from tokenizers.processors import Sequence as ProcessorSequence
+from tokenizers.processors import TemplateProcessing
 from tokenizers.trainers import Trainer, WordLevelTrainer
 
 
@@ -68,7 +70,16 @@ class AACTokenizer:
                 Lowercase(),
                 Strip(),
                 StripAccents(),
-                # Replace("  ", " "),
+                Replace(r"“", '"'),
+                Replace(r"”", '"'),
+                Replace(r"`", "'"),
+                Replace(r"’", "'"),
+                Replace(r";", ","),
+                Replace(r"…", "..."),
+                Replace(Regex(r"\s*-\s*"), "-"),
+                # Replace all punctuation and weird characters except comma
+                Replace(Regex(r"[.!?;:\"“”’`\(\)\{\}\[\]\*\×\-#/+_~ʘ\\/]"), " "),
+                Replace(Regex(r"\s+"), " "),
             ],
         )
         return normalizer
@@ -90,10 +101,17 @@ class AACTokenizer:
         eos_token: str,
         eos_token_id: int,
     ) -> PostProcessor:
-        return TemplateProcessing(
-            single=f"{bos_token} $0 {eos_token}",
-            pair=None,
-            special_tokens=[(bos_token, bos_token_id), (eos_token, eos_token_id)],
+        return ProcessorSequence(
+            [
+                TemplateProcessing(
+                    single=f"{bos_token} $0 {eos_token}",
+                    pair=None,
+                    special_tokens=[
+                        (bos_token, bos_token_id),
+                        (eos_token, eos_token_id),
+                    ],
+                ),
+            ],
         )
 
     @property
