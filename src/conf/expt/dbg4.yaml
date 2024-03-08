@@ -11,3 +11,5 @@ trainer:
 
 datamodule:
   batch_size: 64
+
+save_name: "${hydra:job.name}-${datetime}-dbg4"

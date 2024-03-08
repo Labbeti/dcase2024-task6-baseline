@@ -15,3 +15,5 @@ model:
   d_model: 256
   label_smoothing: 0.2
   mixup_alpha: 0.4
+
+save_name: "${hydra:job.name}-${datetime}-baseline"
