@@ -20,7 +20,6 @@ from tokenizers.trainers import Trainer, WordLevelTrainer
 
 
 class AACTokenizer:
-    """Wrapper of tokenizers.Tokenizer."""
 
     VERSION: ClassVar[int] = 1
 
@@ -33,23 +32,22 @@ class AACTokenizer:
         unk_token: str = "<unk>",
         version: int | None = None,
     ) -> None:
+        """Wrapper of tokenizers.Tokenizer for audio captioning.
+
+        Args:
+            tokenizer: Internal tokenizer used to encode sentences. If None, defaults to Class.default_tokenizer classmethod.
+            pad_token: Padding token string.
+            bos_token: Begin-Of-Sentence token string.
+            eos_token: End-Of-Sentence token string.
+            unk_token: Unknown token string.
+            version: AACTokenizer version. Intended for future updates of this class.
+        """
         if tokenizer is None:
-            special_tokens = (pad_token, bos_token, eos_token, unk_token)
-            initial_vocab = dict(zip(special_tokens, range(len(special_tokens))))
-            model = WordLevel(initial_vocab, unk_token)
-
-            normalizer = AACTokenizer.default_normalizer()
-            pre_tokenizer = AACTokenizer.default_pre_tokenizer()
-            post_processor = AACTokenizer.default_post_processor(
-                bos_token, initial_vocab[bos_token], eos_token, initial_vocab[eos_token]
-            )
-
-            tokenizer = Tokenizer(model)
-            tokenizer.normalizer = normalizer  # type: ignore
-            tokenizer.pre_tokenizer = pre_tokenizer  # type: ignore
-            tokenizer.post_processor = post_processor  # type: ignore
-            tokenizer.enable_padding(
-                direction="right", pad_id=initial_vocab[pad_token], pad_token=pad_token
+            tokenizer = self.__class__.default_tokenizer(
+                pad_token=pad_token,
+                bos_token=bos_token,
+                eos_token=eos_token,
+                unk_token=unk_token,
             )
 
         if version is None:
@@ -62,6 +60,33 @@ class AACTokenizer:
         self._eos_token = eos_token
         self._unk_token = unk_token
         self._version = version
+
+    @classmethod
+    def default_tokenizer(
+        cls,
+        pad_token: str = "<pad>",
+        bos_token: str = "<bos>",
+        eos_token: str = "<eos>",
+        unk_token: str = "<unk>",
+    ) -> Tokenizer:
+        special_tokens = (pad_token, bos_token, eos_token, unk_token)
+        initial_vocab = dict(zip(special_tokens, range(len(special_tokens))))
+        model = WordLevel(initial_vocab, unk_token)
+
+        normalizer = cls.default_normalizer()
+        pre_tokenizer = cls.default_pre_tokenizer()
+        post_processor = cls.default_post_processor(
+            bos_token, initial_vocab[bos_token], eos_token, initial_vocab[eos_token]
+        )
+
+        tokenizer = Tokenizer(model)
+        tokenizer.normalizer = normalizer  # type: ignore
+        tokenizer.pre_tokenizer = pre_tokenizer  # type: ignore
+        tokenizer.post_processor = post_processor  # type: ignore
+        tokenizer.enable_padding(
+            direction="right", pad_id=initial_vocab[pad_token], pad_token=pad_token
+        )
+        return tokenizer
 
     @classmethod
     def default_normalizer(cls) -> Normalizer:
