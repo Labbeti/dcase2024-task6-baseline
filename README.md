@@ -15,7 +15,7 @@ DCASE2024 Challenge Task 6 baseline system (Automated Audio Captioning, AAC)
 The main model is composed of a pretrained convolutional encoder to extract features and a transformer decoder to generate caption.
 For more information, please refer to the corresponding [DCASE task page](https://dcase.community/challenge2024/task-automated-audio-captioning).
 
-### Features overview:
+**Features included:**
 - Train an AAC model on the Clotho dataset
 - Download data and extract features
 - Compute a large set of AAC-specific metrics
@@ -40,6 +40,7 @@ pre-commit install
 ```
 
 You also need to install Java >= 1.8 and <= 1.13 on your machine to compute AAC metrics. If needed, you can override java executable path with the environment variable `AAC_METRICS_JAVA_PATH`.
+
 
 ## Usage
 
@@ -78,8 +79,7 @@ Training follows the standard way to create a model with lightning:
 - Evaluate the model using [aac-metrics](https://github.com/Labbeti/aac-metrics)
 
 ## Model
-
-The model outperforms previous baselines with a SPIDEr-FL score of 29.5% on the Clotho evaluation subset.
+The model outperforms previous baselines with a SPIDEr-FL score of **29.5%** on the Clotho evaluation subset.
 The architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
 
 ### Main hyperparameters
