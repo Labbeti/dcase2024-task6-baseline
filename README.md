@@ -18,7 +18,7 @@ DCASE2024 Challenge Task 6 baseline system (Automated Audio Captioning, AAC)
 The main model is composed of a pretrained convolutional encoder to extract features and a transformer decoder to generate caption.
 For more information, please refer to the corresponding [DCASE task page](https://dcase.community/challenge2024/task-automated-audio-captioning).
 
-**Features included:**
+**Main features includes:**
 - Train an AAC model on the Clotho dataset
 - Download data and extract features
 - Compute a large set of AAC-specific metrics
