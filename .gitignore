@@ -161,5 +161,7 @@ cython_debug/
 
 logs/
 data/
+saved_logs/
 
 jz*.yaml
+*.ign.py

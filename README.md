@@ -9,6 +9,9 @@
 <a href="https://black.readthedocs.io/en/stable/">
     <img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-black.svg?style=for-the-badge&labelColor=gray">
 </a>
+<a href="https://github.com/Labbeti/dcase2024-task6-baseline/actions">
+    <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/Labbeti/dcase2024-task6-baseline/test.yaml?branch=main&style=for-the-badge&logo=github">
+</a>
 
 DCASE2024 Challenge Task 6 baseline system (Automated Audio Captioning, AAC)
 
@@ -54,7 +57,7 @@ By default, the dataset is stored in `./data` directory. It will requires approx
 
 ### Train the default model
 ```bash
-dcase24t6-train
+dcase24t6-train +expt=baseline
 ```
 
 By default, the model and results are saved in directory `./logs/SAVE_NAME`. `SAVE_NAME` is the name of the script with the train starting date.
