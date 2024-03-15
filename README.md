@@ -1,5 +1,9 @@
 # dcase2024-task6-baseline
 
+<div align="center">
+
+**DCASE2024 Challenge Task 6 baseline system of Automated Audio Captioning (AAC)**
+
 <a href="https://www.python.org/">
     <img alt="Python" src="https://img.shields.io/badge/-Python 3.11-blue?style=for-the-badge&logo=python&logoColor=white">
 </a>
@@ -13,7 +17,7 @@
     <img alt="Build" src="https://img.shields.io/github/actions/workflow/status/Labbeti/dcase2024-task6-baseline/test.yaml?branch=main&style=for-the-badge&logo=github">
 </a>
 
-DCASE2024 Challenge Task 6 baseline system (Automated Audio Captioning, AAC)
+</div>
 
 The main model is composed of a pretrained convolutional encoder to extract features and a transformer decoder to generate caption.
 For more information, please refer to the corresponding [DCASE task page](https://dcase.community/challenge2024/task-automated-audio-captioning).
@@ -22,7 +26,7 @@ For more information, please refer to the corresponding [DCASE task page](https:
 - AAC model trained on the **Clotho** dataset
 - Extract features using **ConvNeXt**
 - System reaches **29.4% SPIDEr-FL** score on Clotho-eval (development-testing)
-- Output training characteristics using **codecarbon** (number of parameters, MACs, energy consumption...)
+- Output detailed training characteristics (number of parameters, MACs, energy consumption...)
 
 
 ## Installation
