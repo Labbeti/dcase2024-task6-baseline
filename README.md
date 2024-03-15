@@ -18,15 +18,15 @@ DCASE2024 Challenge Task 6 baseline system (Automated Audio Captioning, AAC)
 The main model is composed of a pretrained convolutional encoder to extract features and a transformer decoder to generate caption.
 For more information, please refer to the corresponding [DCASE task page](https://dcase.community/challenge2024/task-automated-audio-captioning).
 
-**Main features includes:**
-- Train an AAC model on the Clotho dataset
-- Download data and extract features
-- Compute a large set of AAC-specific metrics
-- Output training characteristics (number of parameters, MACs, energy consumption...)
+**This repository includes:**
+- AAC model trained on the **Clotho** dataset
+- Extract features using **ConvNeXt**
+- System reaches **29.4% SPIDEr-FL** score on Clotho-eval (development-testing)
+- Output training characteristics using **codecarbon** (number of parameters, MACs, energy consumption...)
 
 
 ## Installation
-First, you need to create an environment that contains **python>=3.11** and **pip**. You can use venv, conda, micromamba or any python environment manager tool.
+First, you need to create an environment that contains **python>=3.11** and **pip**. You can use venv, conda, micromamba or other python environment tool.
 
 Here is an example with [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html):
 ```bash
@@ -82,7 +82,7 @@ Training follows the standard way to create a model with lightning:
 - Evaluate the model using [aac-metrics](https://github.com/Labbeti/aac-metrics)
 
 ## Model
-The model outperforms previous baselines with a SPIDEr-FL score of **29.5%** on the Clotho evaluation subset.
+The model outperforms previous baselines with a SPIDEr-FL score of **29.4%** on the Clotho evaluation subset.
 The architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
 
 ### Main hyperparameters
@@ -155,9 +155,9 @@ Then you will be able to import any object from the code like for example `from 
 
 
 ## Additional information
-- The code has been made for Ubuntu 20.04 and should work on more recent Ubuntu versions and Linux-based distributions.
-- The GPU used is NVIDIA GeForce RTX 2080 Ti. Training lasts for approximatively 2 hours in the default setting.
-- In this code, the clotho subsets are naming following the Clotho convention, not DCASE convention. See more information [on this page](https://aac-datasets.readthedocs.io/en/stable/data_subsets.html#clotho).
+- The code has been made for **Ubuntu 20.04** and should work on more recent Ubuntu versions and Linux-based distributions.
+- The GPU used is **NVIDIA GeForce RTX 2080 Ti**. Training lasts for approximatively 2 hours in the default setting.
+- In this code, clotho subsets are named according to the **Clotho convention**, not the DCASE convention. See more information [on this page](https://aac-datasets.readthedocs.io/en/stable/data_subsets.html#clotho).
 
 
 ## See also
