@@ -56,16 +56,22 @@ dcase24t6-prepare
 By default, the dataset is stored in `./data` directory. It will requires approximatively 33GB of disk space.
 
 ### Train the default model
+
 ```bash
 dcase24t6-train +expt=baseline
 ```
 
-By default, the model and results are saved in directory `./logs/SAVE_NAME`. `SAVE_NAME` is the name of the script with the train starting date.
+By default, the model and results are saved in directory `./logs/SAVE_NAME`. `SAVE_NAME` is the name of the script with the starting date.
+Metrics are computed at the end of the training with the best checkpoint.
 
-### Test the default model
+### Test a pretrained model
+
 ```bash
 dcase24t6-test ckpt_path=./logs/SAVE_NAME/checkpoints/MODEL.ckpt
 ```
+
+You need to replace `SAVE_NAME` by the save directory name and `MODEL` by the checkpoint filename.
+
 
 ## Code overview
 The source code extensively use [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) for training and [Hydra](https://hydra.cc/) for configuration.
