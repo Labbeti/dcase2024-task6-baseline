@@ -126,7 +126,7 @@ The architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.p
 
 ### Complexity
 
-Here is also the number of parameters and multiply-accumulate operations (MACs) during training and inference:
+Here is also an estimation of the number of parameters and multiply-accumulate operations (MACs) during training and inference:
 
 | Name | Model part | Value |
 | --- | --- | --- |
