@@ -280,7 +280,8 @@ class Evaluator(Callback):
         ]
 
         outputs_fname = self.outputs_fname.format(
-            stage=stage, dataset_name=dataset_name
+            stage=stage,
+            dataset_name=dataset_name,
         )
         outputs_fpath = self.save_dir.joinpath(outputs_fname)
         save_to_csv(rows, outputs_fpath, overwrite=False, to_builtins=True)
@@ -296,7 +297,8 @@ class Evaluator(Callback):
 
         submission_fname = str(self.submission_fname)
         submission_fname = submission_fname.format(
-            stage=stage, dataset_name=dataset_name
+            stage=stage,
+            dataset_name=dataset_name,
         )
         submission_fpath = self.save_dir.joinpath(submission_fname)
         os.makedirs(submission_fpath.parent, exist_ok=True)
