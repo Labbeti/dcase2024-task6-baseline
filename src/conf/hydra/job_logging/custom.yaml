@@ -23,8 +23,8 @@ handlers:
     stream: ext://sys.stdout
   file:
     class: dcase24t6.utils.hydra.CustomFileHandler
-    formatter: colorlog
-    filename: "${hydra.sweep.dir}/${hydra.sweep.subdir}/logs/outputs.log"
+    formatter: simple
+    filename: "${hydra.sweep.dir}/${hydra.sweep.subdir}/outputs/stdout.log"
 
 root:
   level: INFO

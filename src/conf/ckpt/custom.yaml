@@ -2,6 +2,7 @@
 
 _target_: "dcase24t6.callbacks.ckpt.CustomModelCheckpoint"
 
+dirpath: "${save_dir}/checkpoints"
 monitor: "val/loss"
 mode: "min"
 filename: "{epoch:03d}-{step:06d}-mode_${ckpt.mode}-{${ckpt.monitor}:.4f}"

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any, Iterable, Literal
@@ -32,7 +33,9 @@ class Evaluator(Callback):
         exclude_keys: str | Iterable[str] | None = "frame_embs",
         outputs_fname: str = "{stage}_{dataset_name}_outputs.csv",
         scores_fname: str = "{stage}_{dataset_name}_scores.yaml",
-        submission_fname: str = "labbe_irit_task6_submission_1_{dataset_name}.csv",
+        submission_fname: str | Path = Path(
+            "dcase", "labbe_irit_task6_submission_1_{dataset_name}.csv"
+        ),
     ) -> None:
         """Evaluator callback to save results and outputs.
 
@@ -291,10 +294,12 @@ class Evaluator(Callback):
         candidates = [result["candidates"] for result in dataset_results]
         fnames = [result["fname"] for result in dataset_results]
 
-        submission_fname = self.submission_fname.format(
+        submission_fname = str(self.submission_fname)
+        submission_fname = submission_fname.format(
             stage=stage, dataset_name=dataset_name
         )
         submission_fpath = self.save_dir.joinpath(submission_fname)
+        os.makedirs(submission_fpath.parent, exist_ok=True)
         export_to_csv_for_dcase_aac(
             submission_fpath,
             fnames,

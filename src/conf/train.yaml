@@ -22,7 +22,7 @@ ckpt_path: null  # str | null
 logger:
   _target_: "lightning.pytorch.loggers.tensorboard.TensorBoardLogger"
   save_dir: "${save_dir}"
-  name: "."
+  name: "tensorboard"
   version: "."
 
 tokenizer:
