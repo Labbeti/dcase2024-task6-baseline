@@ -93,7 +93,7 @@ Training follows the standard way to create a model with lightning:
 
 ## Model
 The model outperforms previous baselines with a SPIDEr-FL score of **29.4%** on the Clotho evaluation subset.
-The architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
+The captioning model architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
 
 ### Main hyperparameters
 
@@ -161,7 +161,7 @@ Then you will be able to import any object from the code like for example `from 
 
 - `aac-metrics` to compute AAC metrics,
 - `aac-datasets` to download and load AAC datasets,
-- `torchoutil[extras]` to pack to HDF datasets.
+- `torchoutil[extras]` to pack datasets to HDF files.
 
 
 ## Additional information
