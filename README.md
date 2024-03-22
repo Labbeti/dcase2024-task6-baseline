@@ -91,6 +91,7 @@ Training follows the standard way to create a model with lightning:
 - Start fitting the model on the specified datamodule.
 - Evaluate the model using [aac-metrics](https://github.com/Labbeti/aac-metrics)
 
+
 ## Model
 The model outperforms previous baselines with a SPIDEr-FL score of **29.4%** on the Clotho evaluation subset.
 The captioning model architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
@@ -110,35 +111,34 @@ The captioning model architecture is described in [this paper](https://arxiv.org
 | Label smoothing | 0.2 | `model.label_smoothing` |
 | Mixup alpha | 0.4 | `model.mixup_alpha` |
 
-<!--
-29388303
-11914777
-41303080
-
-55_506_514_080
-245_408_256
-55751922336
-
-55_506_514_080
-1_044_628_224
-56_551_142_304
--->
 
 ### Complexity
 
-Here is also an estimation of the number of parameters and multiply-accumulate operations (MACs) during training and inference:
+<!--
+# encoder:
+flops: 89724036608
+macs: 44757425184
+params: 29388303
+duration: 0.030155420303344727
 
-| Name | Model part | Value |
+# decoder:
+forcing_flops: 471009792
+forcing_macs: 235300608
+forcing_params: 11911699
+forcing_duration: 0.016583681106567383
+generate_flops: 5589742080
+generate_macs: 2793307392
+generate_params: 11911699
+generate_duration: 0.14899301528930664
+-->
+
+Here is also an estimation of the number of parameters and multiply-accumulate operations (MACs) during inference for the audio file "Santa Motor.wav":
+
+| Name | Params (M) | MACs (G) |
 | --- | --- | --- |
-| Parameters (M) | encoder | 29.4 |
-| Parameters (M) | decoder | 11.9 |
-| Parameters (M) | total | 41.3 |
-| Train MACs (G) | encoder | 55.5 |
-| Train MACs (G) | decoder | 0.2 |
-| Train MACs (G) | total | 55.8 |
-| Inference MACs (G) | encoder | 55.5 |
-| Inference MACs (G) | decoder | 1.0 |
-| Inference MACs (G) | total | 56.6 |
+| Encoder | 29.4 | 44.8 |
+| Decoder | 11.9 | 2.8 |
+| Total | 41.3 | 47.6 |
 
 
 ## Tips
