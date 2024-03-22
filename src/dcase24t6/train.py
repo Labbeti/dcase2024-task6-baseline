@@ -39,6 +39,7 @@ from lightning.pytorch.loggers import Logger
 from omegaconf import DictConfig, OmegaConf
 
 from dcase24t6.callbacks.complexity import ComplexityProfiler
+from dcase24t6.callbacks.debug import PrintModelHash
 from dcase24t6.callbacks.emissions import CustomEmissionTracker
 from dcase24t6.callbacks.evaluator import Evaluator
 from dcase24t6.tokenization.aac_tokenizer import AACTokenizer
@@ -77,13 +78,28 @@ def train(cfg: DictConfig) -> None | float:
         logger=loggers,
     )
 
-    # Train
+    # Main loops
     trainer.validate(
-        model, datamodule=datamodule, ckpt_path=cfg.ckpt_path, verbose=cfg.verbose > 1
+        model,
+        datamodule=datamodule,
+        ckpt_path=cfg.val_ckpt_path,
+        verbose=cfg.verbose > 1,
     )
-    trainer.fit(model, datamodule=datamodule)
-    trainer.test(model, datamodule=datamodule, verbose=cfg.verbose > 1)
-    trainer.predict(model, datamodule=datamodule)
+    trainer.fit(
+        model,
+        datamodule=datamodule,
+    )
+    trainer.test(
+        model,
+        datamodule=datamodule,
+        ckpt_path=cfg.test_ckpt_path,
+        verbose=cfg.verbose > 1,
+    )
+    trainer.predict(
+        model,
+        datamodule=datamodule,
+        ckpt_path=cfg.test_ckpt_path,
+    )
 
     # Save job info & stats
     global_tracker.stop_and_save_task("total", trainer)
@@ -111,12 +127,14 @@ def get_callbacks(cfg: DictConfig) -> dict[str, Callback]:
     model_summary = ModelSummary(max_depth=1)
     complexity_profiler = ComplexityProfiler(cfg.save_dir, verbose=cfg.verbose)
     lr_monitor = LearningRateMonitor()
+    print_model_hash = PrintModelHash(cfg.save_dir, verbose=cfg.verbose)
 
     callbacks: dict[str, Callback] = {
         "evaluator": evaluator,
         "model_summary": model_summary,
         "complexity_profiler": complexity_profiler,
         "lr_monitor": lr_monitor,
+        "print_model_hash": print_model_hash,
     }
 
     checkpoint: ModelCheckpoint | None = instantiate(cfg.ckpt)

@@ -2,11 +2,15 @@
 
 defaults:
   - train
-  - ckpt: disabled
+  - override ckpt: disabled
+  - override model: pretrained
+  - override tokenizer: pretrained
   - _self_
 
 trainer:
-  max_epochs: 0
+  enable_checkpointing: false
   limit_train_batches: 0
+  max_epochs: 0
 
-ckpt_path: ???
+val_ckpt_path: null  # str | null
+test_predict_ckpt_path: null  # str | null

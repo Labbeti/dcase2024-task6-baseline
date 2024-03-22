@@ -5,6 +5,7 @@ defaults:
   - datamodule: hdf
   - emission: online
   - model: trans_decoder
+  - tokenizer: word
   - path: local
   - hydra: custom
   - _self_
@@ -17,16 +18,14 @@ seed: 42  # int | null
 verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
 
 # --- Train args
-ckpt_path: null  # str | null
+val_ckpt_path: null  # str | null
+test_ckpt_path: "best"  # str | null
 
 logger:
   _target_: "lightning.pytorch.loggers.tensorboard.TensorBoardLogger"
   save_dir: "${save_dir}"
   name: "tensorboard"
   version: "."
-
-tokenizer:
-  _target_: "dcase24t6.tokenization.aac_tokenizer.AACTokenizer"
 
 trainer:
   _target_: "lightning.pytorch.trainer.Trainer"
