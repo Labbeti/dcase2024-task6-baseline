@@ -182,11 +182,13 @@ class AACTokenizer:
     def token_to_id(self, token: str) -> int:
         return self._tokenizer.token_to_id(token)
 
-    def get_token_to_id(self) -> dict[str, int]:
-        return self._tokenizer.get_vocab()
+    def get_token_to_id(self, with_added_tokens: bool = True) -> dict[str, int]:
+        return self._tokenizer.get_vocab(with_added_tokens)
 
-    def get_id_to_token(self) -> dict[int, str]:
-        return {id_: token for token, id_ in self.get_token_to_id().items()}
+    def get_id_to_token(self, with_added_tokens: bool = True) -> dict[int, str]:
+        return {
+            id_: token for token, id_ in self.get_token_to_id(with_added_tokens).items()
+        }
 
     def train_from_iterator(
         self,
@@ -286,6 +288,9 @@ class AACTokenizer:
         content = path.read_text()
         aac_tokenizer = cls.from_str(content)
         return aac_tokenizer
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(vocab={self.get_vocab_size()})"
 
 
 def is_list_encoding(sequence: Any) -> TypeGuard[Sequence[Encoding]]:

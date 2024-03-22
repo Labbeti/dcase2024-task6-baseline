@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import itertools
 import math
 import warnings
 from typing import Any, Callable
 
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 
 ACTIVATIONS = ("relu", "gelu")
@@ -132,3 +133,23 @@ def remove_index_nd(x: Tensor, index: int, dim: int = -1) -> Tensor:
     x = x[slices]
 
     return x
+
+
+@torch.inference_mode()
+def hash_model(model: nn.Module) -> int:
+    params_or_buffers = itertools.chain(model.parameters(), model.buffers())
+    hash_value = sum(hash_tensor(p) * (i + 1) for i, p in enumerate(params_or_buffers))
+    return hash_value
+
+
+@torch.inference_mode()
+def hash_tensor(x: Tensor) -> int:
+    x = x.cpu()
+    if x.ndim > 0:
+        x = x.flatten()
+        dtype = x.dtype if x.dtype != torch.bool else torch.int
+        x = x * torch.arange(1, len(x) + 1, device=x.device, dtype=dtype)
+        x = x.nansum()
+
+    hash_value = int(x.item())
+    return hash_value

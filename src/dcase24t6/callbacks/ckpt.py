@@ -1,12 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import logging
+import os
 from datetime import timedelta
+from pathlib import Path
 from typing import Literal, Optional
 
+from lightning import LightningModule, Trainer
 from lightning.fabric.utilities.types import _PATH
 from lightning.pytorch.callbacks import ModelCheckpoint
 from torch import Tensor
+
+pylog = logging.getLogger(__name__)
 
 
 class CustomModelCheckpoint(ModelCheckpoint):
@@ -28,7 +34,8 @@ class CustomModelCheckpoint(ModelCheckpoint):
         save_on_train_epoch_end: Optional[bool] = None,
         enable_version_counter: bool = True,
         # Custom args
-        replace_slash_in_filename: bool = False,
+        replace_slash_in_filename: bool = True,
+        create_best_symlink: bool = True,
     ) -> None:
         super().__init__(
             dirpath=dirpath,
@@ -47,6 +54,7 @@ class CustomModelCheckpoint(ModelCheckpoint):
             enable_version_counter=enable_version_counter,
         )
         self.replace_slash_in_filename = replace_slash_in_filename
+        self.create_best_symlink = create_best_symlink
 
     def _format_checkpoint_name(
         self,
@@ -61,3 +69,35 @@ class CustomModelCheckpoint(ModelCheckpoint):
         if self.replace_slash_in_filename:
             fname = fname.replace("/", "_")
         return fname
+
+    def on_fit_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_fit_end(trainer, pl_module)
+
+        if self.dirpath is not None:
+            os.makedirs(self.dirpath, exist_ok=True)
+            self.to_yaml()
+
+        best_model_path = Path(self.best_model_path)
+        if (
+            not self.create_best_symlink
+            or not trainer.is_global_zero
+            or not best_model_path.is_file()
+        ):
+            return None
+
+        ckpt_dpath = best_model_path.parent
+        ckpt_fname = best_model_path.name
+        lpath = ckpt_dpath.joinpath("best.ckpt")
+
+        if lpath.exists():
+            pylog.warning(f"Link {lpath.name} already exists.")
+            return None
+
+        os.symlink(ckpt_fname, lpath)
+
+        if not lpath.is_file():
+            pylog.error(f"Invalid symlink file {lpath=}.")
+        elif self.verbose:
+            pylog.debug(
+                f"Create relative symlink for best model checkpoint '{lpath}'. (from='{self.best_model_path}')"
+            )

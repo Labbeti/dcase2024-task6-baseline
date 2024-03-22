@@ -31,7 +31,8 @@ class ComplexityProfiler(Callback):
     def __init__(
         self,
         save_dir: str | Path,
-        cplxity_fname: str = "model_complexity.yaml",
+        cplxity_fname: str | Path = "model_complexity.yaml",
+        profile_fname: str | Path = Path("outputs", "profile.txt"),
         backend: Literal["deepspeed"] = "deepspeed",
         verbose: int = 1,
     ) -> None:
@@ -39,6 +40,7 @@ class ComplexityProfiler(Callback):
         super().__init__()
         self.save_dir = save_dir
         self.cplxity_fname = cplxity_fname
+        self.profile_fname = profile_fname
         self.backend = backend
         self.verbose = verbose
 
@@ -93,11 +95,15 @@ class ComplexityProfiler(Callback):
     ) -> ProfileOutput:
         match self.backend:
             case "deepspeed":
+                profile_fname = str(self.profile_fname)
+                profile_fpath = self.save_dir.joinpath(profile_fname)
+
                 output = _measure_complexity_with_deepspeed(
                     model=model,
                     example=example,
                     device=device,
                     verbose=self.verbose,
+                    output_file=profile_fpath,
                 )
 
             case backend:
@@ -128,7 +134,9 @@ class ComplexityProfiler(Callback):
 
         if fmt_kwargs is None:
             fmt_kwargs = {}
-        cplxity_fname = self.cplxity_fname.format(**fmt_kwargs)
+
+        cplxity_fname = str(self.cplxity_fname)
+        cplxity_fname = cplxity_fname.format(**fmt_kwargs)
         cplxity_fpath = self.save_dir.joinpath(cplxity_fname)
         save_to_yaml(cplxity_info, cplxity_fpath)
 
@@ -164,34 +172,25 @@ def _measure_complexity_with_deepspeed(
             f"Invalid argument type {type(example)=}. (expected mapping or tuple)"
         )
 
-    assert (len(args) > 0) or (
-        len(kwargs) > 0
-    ), "args and/or kwargs must be specified if input_shape is None"
-
     prof = FlopsProfiler(model)
     model.eval()
 
     if verbose >= 2:
         pylog.info("Flops profiler warming-up...")
+
     for _ in range(warm_up):
-        if kwargs:
-            _ = model(*args, **kwargs)
-        else:
-            _ = model(*args)
+        _ = model(*args, **kwargs)
 
     prof.start_profile(ignore_list=ignore_modules)
 
-    if kwargs:
-        output = model(*args, **kwargs)
-    else:
-        output = model(*args)
+    output = model(*args, **kwargs)
 
     flops: int = prof.get_total_flops()  # type: ignore
     macs: int = prof.get_total_macs()  # type: ignore
     params: int = prof.get_total_params()  # type: ignore
     duration: float = prof.get_total_duration()  # type: ignore
 
-    if verbose >= 2:
+    if verbose >= 2 or output_file is not None:
         prof.print_model_profile(
             profile_step=warm_up,
             module_depth=module_depth,

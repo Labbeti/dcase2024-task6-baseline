@@ -69,33 +69,6 @@ class TransDecoderModel(AACModel):
         return self.decoder is not None
 
     def setup(self, stage: Stage) -> None:
-        if not self.is_built():
-            projection = nn.Sequential(
-                nn.Dropout(p=0.5),
-                Transpose(1, 2),
-                nn.Linear(self.hparams["in_features"], self.hparams["d_model"]),
-                nn.ReLU(inplace=True),
-                Transpose(1, 2),
-                nn.Dropout(p=0.5),
-            )
-            decoder = AACTransformerDecoder(
-                vocab_size=self.tokenizer.get_vocab_size(),
-                pad_id=self.tokenizer.pad_token_id,
-                d_model=self.hparams["d_model"],
-            )
-
-            forbid_rep_mask = get_forbid_rep_mask_content_words(
-                vocab_size=self.tokenizer.get_vocab_size(),
-                token_to_id=self.tokenizer.get_token_to_id(),
-                device=self.device,
-                verbose=self.hparams["verbose"],
-            )
-
-            self.projection = projection
-            self.decoder = decoder
-            self.register_buffer("forbid_rep_mask", forbid_rep_mask)
-            self.forbid_rep_mask: Optional[Tensor]
-
         if stage in ("fit", None) and "batch_size" in self.datamodule.hparams:
             source_batch_size = self.datamodule.hparams["batch_size"]
             target_batch_size = 1
@@ -104,6 +77,36 @@ class TransDecoderModel(AACModel):
             self.datamodule.hparams["batch_size"] = source_batch_size
             batch = next(iter(loader))
             self.example_input_array = {"batch": batch}
+
+    def configure_model(self) -> None:
+        if self.is_built():
+            return None
+
+        projection = nn.Sequential(
+            nn.Dropout(p=0.5),
+            Transpose(1, 2),
+            nn.Linear(self.hparams["in_features"], self.hparams["d_model"]),
+            nn.ReLU(inplace=True),
+            Transpose(1, 2),
+            nn.Dropout(p=0.5),
+        )
+        decoder = AACTransformerDecoder(
+            vocab_size=self.tokenizer.get_vocab_size(),
+            pad_id=self.tokenizer.pad_token_id,
+            d_model=self.hparams["d_model"],
+        )
+
+        forbid_rep_mask = get_forbid_rep_mask_content_words(
+            vocab_size=self.tokenizer.get_vocab_size(),
+            token_to_id=self.tokenizer.get_token_to_id(),
+            device=self.device,
+            verbose=self.hparams["verbose"],
+        )
+
+        self.projection = projection
+        self.decoder = decoder
+        self.register_buffer("forbid_rep_mask", forbid_rep_mask)
+        self.forbid_rep_mask: Optional[Tensor]
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         if self.hparams["custom_weight_decay"]:
