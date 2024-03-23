@@ -120,9 +120,9 @@ The captioning model architecture is described in [this paper](https://arxiv.org
 | Metric | Score on Clotho-eval |
 | --- | --- |
 | BLEU-1 | 0.5948 |
-| bleu_2 | 0.3924 |
-| bleu_3 | 0.2603 |
-| bleu_4 | 0.1695 |
+| BLEU-2 | 0.3924 |
+| BLEU-3 | 0.2603 |
+| BLEU-4 | 0.1695 |
 | METEOR | 0.1897 |
 | ROUGE-L | 0.3927 |
 | CIDEr-D | 0.4619 |
@@ -132,8 +132,8 @@ The captioning model architecture is described in [this paper](https://arxiv.org
 | SBERT-sim | 0.5059 |
 | FER | 0.0038 |
 | FENSE | 0.5040 |
-| Vocabulary | 551.0 |
-| BERTScore (F1) | 0.9766 |
+| BERTScore | 0.9766 |
+| Vocabulary (words) | 551 |
 
 Here is also an estimation of the number of parameters and multiply-accumulate operations (MACs) during inference for the audio file "Santa Motor.wav":
 
@@ -157,9 +157,9 @@ generate_duration: 0.14899301528930664
 
 | Name | Params (M) | MACs (G) |
 | --- | --- | --- |
-| Encoder | 29.4 | 44.8 |
-| Decoder | 11.9 | 2.8 |
-| Total | 41.3 | 47.6 |
+| Encoder | 29.4 | 44.4 |
+| Decoder | 11.9 | 4.3 |
+| Total | 41.3 | 48.8 |
 
 ## Tips
 - **Modify the model**.
@@ -186,7 +186,7 @@ Then you will be able to import any object from the code like for example `from 
 
 ## Additional information
 - The code has been made for **Ubuntu 20.04** and should work on more recent Ubuntu versions and Linux-based distributions.
-- The GPU used is **NVIDIA GeForce RTX 2080 Ti**. Training lasts for approximatively 2 hours in the default setting.
+- The GPU used is **NVIDIA GeForce RTX 2080 Ti** (11GB VRAM). Training lasts for approximatively 2h30m in the default setting.
 - In this code, clotho subsets are named according to the **Clotho convention**, not the DCASE convention. See more information [on this page](https://aac-datasets.readthedocs.io/en/stable/data_subsets.html#clotho).
 
 
