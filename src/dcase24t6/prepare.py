@@ -130,6 +130,7 @@ def prepare_data_metrics_models(
         )
 
     hdf_datasets = {}
+    dataset_name = "clotho"
 
     for subset in subsets:
         dataset = Clotho(
@@ -144,7 +145,7 @@ def prepare_data_metrics_models(
 
         # example: clotho_dev.hdf
         hdf_fname = hdf_pattern.format(
-            dataset="clotho",
+            dataset=dataset_name,
             subset=subset,
         )
         hdf_fpath = dataroot.joinpath("HDF", hdf_fname)
@@ -154,7 +155,8 @@ def prepare_data_metrics_models(
             item = dataset[0]
             example = (item,)
             complexities = complexity_profiler.profile(example, pre_process)
-            complexity_profiler.save(complexities, pre_process, item, fmt_kwargs=dict(dataset="clotho", subset=subset))  # type: ignore
+            complexities.pop("model_output")
+            complexity_profiler.save(complexities, pre_process, item, fmt_kwargs=dict(dataset=dataset_name, subset=subset))  # type: ignore
 
         if hdf_fpath.exists() and not overwrite:
             pylog.info(
