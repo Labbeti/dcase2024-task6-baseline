@@ -96,7 +96,7 @@ Training follows the standard way to create a model with lightning:
 
 
 ## Model
-The model outperforms previous baselines with a SPIDEr-FL score of **29.4%** on the Clotho evaluation subset.
+The model outperforms previous baselines with a SPIDEr-FL score of **29.6%** on the Clotho evaluation subset.
 The captioning model architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
 
 ### Main hyperparameters
