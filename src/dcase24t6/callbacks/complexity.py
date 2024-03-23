@@ -144,7 +144,7 @@ class ComplexityProfiler(Callback):
 def _measure_complexity_with_deepspeed(
     model: nn.Module,
     example: Mapping[str, Any] | tuple,
-    device: str | torch.device | None,
+    device: str | torch.device | None = None,
     module_depth: int = -1,
     top_modules: int = 1,
     warm_up: int = 1,
