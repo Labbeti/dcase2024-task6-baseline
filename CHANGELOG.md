@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.0] UNRELEASED
+## [1.0.0] 2024-03-23
 ### Added
 - Train an AAC model on the Clotho dataset
 - Download data and extract features
