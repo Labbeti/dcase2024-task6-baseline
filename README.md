@@ -71,11 +71,14 @@ Metrics are computed at the end of the training with the best checkpoint.
 ### Test a pretrained model
 
 ```bash
-dcase24t6-test ckpt_path=./logs/SAVE_NAME/checkpoints/MODEL.ckpt
+dcase24t6-test resume=./logs/SAVE_NAME
+```
+or specify each path separtely:
+```bash
+dcase24t6-test resume=null model.checkpoint_path=./logs/SAVE_NAME/checkpoints/MODEL.ckpt tokenizer.path=./logs/SAVE_NAME/tokenizer.json
 ```
 
 You need to replace `SAVE_NAME` by the save directory name and `MODEL` by the checkpoint filename.
-
 
 ## Code overview
 The source code extensively use [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) for training and [Hydra](https://hydra.cc/) for configuration.
@@ -139,7 +142,6 @@ Here is also an estimation of the number of parameters and multiply-accumulate o
 | Encoder | 29.4 | 44.8 |
 | Decoder | 11.9 | 2.8 |
 | Total | 41.3 | 47.6 |
-
 
 ## Tips
 - **Modify the model**.
