@@ -25,7 +25,7 @@ For more information, please refer to the corresponding [DCASE task page](https:
 **This repository includes:**
 - AAC model trained on the **Clotho** dataset
 - Extract features using **ConvNeXt**
-- System reaches **29.4% SPIDEr-FL** score on Clotho-eval (development-testing)
+- System reaches **29.6% SPIDEr-FL** score on Clotho-eval (development-testing)
 - Output detailed training characteristics (number of parameters, MACs, energy consumption...)
 
 
@@ -115,7 +115,27 @@ The captioning model architecture is described in [this paper](https://arxiv.org
 | Mixup alpha | 0.4 | `model.mixup_alpha` |
 
 
-### Complexity
+### Detailed results
+
+| Metric | Score on Clotho-eval |
+| --- | --- |
+| BLEU-1 | 0.5948 |
+| bleu_2 | 0.3924 |
+| bleu_3 | 0.2603 |
+| bleu_4 | 0.1695 |
+| METEOR | 0.1897 |
+| ROUGE-L | 0.3927 |
+| CIDEr-D | 0.4619 |
+| SPICE | 0.1335 |
+| SPIDEr | 0.2977 |
+| SPIDEr-FL | 0.2962 |
+| SBERT-sim | 0.5059 |
+| FER | 0.0038 |
+| FENSE | 0.5040 |
+| Vocabulary | 551.0 |
+| BERTScore (F1) | 0.9766 |
+
+Here is also an estimation of the number of parameters and multiply-accumulate operations (MACs) during inference for the audio file "Santa Motor.wav":
 
 <!--
 # encoder:
@@ -134,8 +154,6 @@ generate_macs: 2793307392
 generate_params: 11911699
 generate_duration: 0.14899301528930664
 -->
-
-Here is also an estimation of the number of parameters and multiply-accumulate operations (MACs) during inference for the audio file "Santa Motor.wav":
 
 | Name | Params (M) | MACs (G) |
 | --- | --- | --- |
