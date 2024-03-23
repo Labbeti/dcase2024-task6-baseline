@@ -85,9 +85,9 @@ The source code extensively use [PyTorch Lightning](https://lightning.ai/docs/py
 It is highly recommanded to learn about them if you want to understand this code.
 
 Installation has three main steps:
-- Download external models (like [ConvNeXt](https://github.com/topel/audioset-convnext-inf) to extract audio features)
+- Download external models ([ConvNeXt](https://github.com/topel/audioset-convnext-inf) to extract audio features)
 - Download Clotho dataset using [aac-datasets](https://github.com/Labbeti/aac-datasets)
-- Create HDF files containing each Clotho subset with preprocessed audio features
+- Create HDF files containing each Clotho subset with preprocessed audio features using [torchoutil](https://github.com/Labbeti/torchoutil)
 
 Training follows the standard way to create a model with lightning:
 - Initialize callbacks, tokenizer, datamodule, model.
@@ -98,6 +98,8 @@ Training follows the standard way to create a model with lightning:
 ## Model
 The model outperforms previous baselines with a SPIDEr-FL score of **29.6%** on the Clotho evaluation subset.
 The captioning model architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
+
+The pretrained weights of the AAC model are available on Zenodo. ([ConvNeXt encoder (BL_AC)](https://zenodo.org/records/8020843), [Transformer decoder](https://zenodo.org/records/10849427))
 
 ### Main hyperparameters
 
@@ -179,8 +181,8 @@ pip install git+https://github.com/Labbeti/dcase2024-task6-baseline
 
 Then you will be able to import any object from the code like for example `from dcase24t6.models.trans_decoder import TransDecoderModel`. There is also several important dependencies that you can install separately:
 
-- `aac-metrics` to compute AAC metrics,
 - `aac-datasets` to download and load AAC datasets,
+- `aac-metrics` to compute AAC metrics,
 - `torchoutil[extras]` to pack datasets to HDF files.
 
 
