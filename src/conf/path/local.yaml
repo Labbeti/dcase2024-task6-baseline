@@ -1,0 +1,4 @@
+# @package path
+
+data_root: "./data"
+save_root: "./logs"

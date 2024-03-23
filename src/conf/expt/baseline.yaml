@@ -1,0 +1,19 @@
+# @package _global_
+
+trainer:
+  max_epochs: 400
+  gradient_clip_val: 1
+  accumulate_grad_batches: 8
+
+datamodule:
+  batch_size: 64
+
+model:
+  lr: 5e-4
+  weight_decay: 2
+  beam_size: 3
+  d_model: 256
+  label_smoothing: 0.2
+  mixup_alpha: 0.4
+
+save_name: "${hydra:job.name}-${datetime}-baseline"

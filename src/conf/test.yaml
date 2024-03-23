@@ -1,0 +1,26 @@
+# @package _global_
+
+defaults:
+  - train
+  - override ckpt: disabled
+  - override model: pretrained
+  - override tokenizer: pretrained
+  - _self_
+
+trainer:
+  enable_checkpointing: false
+  limit_train_batches: 0
+  limit_val_batches: 0
+  max_epochs: 0
+
+val_ckpt_path: null  # str | null
+test_ckpt_path: null  # str | null
+
+# Resume train save_dir
+resume: ???
+
+model:
+  checkpoint_path: ${resume}/checkpoints/best.ckpt
+
+tokenizer:
+  path: ${resume}/tokenizer.json

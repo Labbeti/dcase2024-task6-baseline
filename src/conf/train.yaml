@@ -1,0 +1,62 @@
+# @package _global_
+
+defaults:
+  - ckpt: custom
+  - datamodule: hdf
+  - emission: online
+  - model: trans_decoder
+  - tokenizer: word
+  - path: local
+  - hydra: custom
+  - _self_
+
+# --- Common args
+datetime: ${now:%Y.%m.%d-%H.%M.%S}  # str
+save_dir: "${hydra:sweep.dir}/${hydra:sweep.subdir}"
+save_name: "${hydra:job.name}-${datetime}"
+seed: 42  # int | null
+verbose: 1  # int (0 = WARNING, 1 = INFO, 2 = DEBUG)
+
+# --- Train args
+val_ckpt_path: null  # str | null
+test_ckpt_path: "best"  # str | null
+
+logger:
+  _target_: "lightning.pytorch.loggers.tensorboard.TensorBoardLogger"
+  save_dir: "${save_dir}"
+  name: "tensorboard"
+  version: "."
+
+trainer:
+  _target_: "lightning.pytorch.trainer.Trainer"
+
+  accelerator: "gpu"
+  accumulate_grad_batches: 8
+  benchmark: false
+  detect_anomaly: false
+  deterministic: false
+  devices: 1
+  enable_checkpointing: true
+  enable_model_summary: false
+  fast_dev_run: false
+  gradient_clip_algorithm: "norm"
+  gradient_clip_val: 1
+  limit_predict_batches: null
+  limit_test_batches: null
+  limit_train_batches: null
+  limit_val_batches: null
+  log_every_n_steps: 5
+  max_epochs: 400
+  max_steps: -1
+  num_nodes: 1
+  num_sanity_val_steps: 0
+  precision: 32
+  reload_dataloaders_every_n_epochs: 0
+  val_check_interval: null
+
+evaluator:
+  _target_: "dcase24t6.callbacks.evaluator.Evaluator"
+  save_dir: "${save_dir}"
+  val_metrics: ["cider_d", "vocab"]
+  test_metrics: "all"
+  exclude_keys: ["frame_embs"]

@@ -1,0 +1,16 @@
+# @package _global_
+
+trainer:
+  max_epochs: 0
+  limit_predict_batches: 2
+  limit_test_batches: 2
+  limit_train_batches: 0
+  limit_val_batches: 0
+  accumulate_grad_batches: 1
+  log_every_n_steps: ${datamodule.batch_size}
+
+datamodule:
+  batch_size: 4
+
+save_name: "${hydra:job.name}-${datetime}-dbg5"
+verbose: 2

@@ -1,0 +1,42 @@
+# -*- coding: utf-8 -*-
+
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+
+title: dcase24t6
+authors:
+  - given-names: Etienne
+    family-names: Labbé
+    affiliation: IRIT
+    orcid: 'https://orcid.org/0000-0002-7219-5463'
+url: https://github.com/Labbeti/dcase2024-task6-baseline
+
+keywords:
+  - baseline
+  - audio-captioning
+  - dcase2024
+
+license: MIT
+version: 1.0.0
+date-released: '2024-03-23'
+
+preferred-citation:
+  authors:
+    - family-names: Labbé
+      given-names: Etienne
+      affiliation: IRIT
+      orcid: 'https://orcid.org/0000-0002-7219-5463'
+    - family-names: Pellegrini
+      given-names: Thomas
+      affiliation: IRIT
+      orcid: 'https://orcid.org/0000-0001-8984-1399'
+    - family-names: Pinquier
+      given-names: Julien
+      affiliation: IRIT
+
+  doi: "10.48550/arXiv.2309.00454"
+  journal: "arxiv preprint"
+  title: "CoNeTTE: An efficient Audio Captioning system leveraging multiple datasets with Task Embedding"
+  type: article
+  url: "https://arxiv.org/abs/2309.00454"
+  year: 2023

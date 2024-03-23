@@ -1,0 +1,3 @@
+# @package ckpt
+
+_target_: "dcase24t6.utils.hydra.get_none"

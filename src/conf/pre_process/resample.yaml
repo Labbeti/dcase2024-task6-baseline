@@ -1,0 +1,6 @@
+# @package pre_process
+
+_target_: "dcase24t6.pre_processes.resample.Resample"
+
+target_sr: 32_000
+input_time_dim: -1
