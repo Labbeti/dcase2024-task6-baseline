@@ -156,7 +156,12 @@ def prepare_data_metrics_models(
             example = (item,)
             complexities = complexity_profiler.profile(example, pre_process)
             complexities.pop("model_output")
-            complexity_profiler.save(complexities, pre_process, item, fmt_kwargs=dict(dataset=dataset_name, subset=subset))  # type: ignore
+            complexity_profiler.save(
+                complexities,
+                pre_process,
+                item,
+                fmt_kwargs=dict(dataset=dataset_name, subset=subset),
+            )
 
         if hdf_fpath.exists() and not overwrite:
             pylog.info(
