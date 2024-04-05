@@ -1,0 +1,5 @@
+# @package tokenizer
+
+_target_: "dcase24t6.tokenization.aac_tokenizer.AACTokenizer.from_file"
+
+path: ~/.cache/torch/hub/checkpoints/dcase2024-task6-baseline/tokenizer.json

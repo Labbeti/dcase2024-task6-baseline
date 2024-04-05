@@ -3,7 +3,7 @@
 
 from torchoutil.utils.ckpt import ModelCheckpointRegister
 
-# Zenodo link : https://zenodo.org/record/8020843
+# Zenodo link : https://zenodo.org/records/8020843
 # Hash type : md5
 CNEXT_REGISTER = ModelCheckpointRegister(
     infos={
@@ -21,4 +21,24 @@ CNEXT_REGISTER = ModelCheckpointRegister(
         },
     },
     state_dict_key="model",
+)
+
+# Zenodo link : https://zenodo.org/records/10849427
+# Hash type : md5
+BASELINE_REGISTER = ModelCheckpointRegister(
+    infos={
+        "baseline_weights": {
+            "architecture": "TransDecoderModel",
+            "url": "https://zenodo.org/records/10849427/files/epoch_192-step_001544-mode_min-val_loss_3.3758.ckpt?download=1",
+            "hash": "9514a8e6fa547bd01fb1badde81c6d10",
+            "fname": "dcase2024-task6-baseline/checkpoints/best.ckpt",
+        },
+        "baseline_tokenizer": {
+            "architecture": "AACTokenizer",
+            "url": "https://zenodo.org/records/10849427/files/tokenizer.json?download=1",
+            "hash": "ee3fef19f7d0891d820d84035483a900",
+            "fname": "dcase2024-task6-baseline/tokenizer.json",
+        },
+    },
+    state_dict_key="state_dict",
 )
