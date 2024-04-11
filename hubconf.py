@@ -20,7 +20,7 @@ def dcase2024_baseline(
     device: str | torch.device | None = "cuda_if_available",
     verbose: int = 0,
 ) -> nn.Sequential:
-    pre_process = ResampleMeanCNext("cnext_bl", offline=offline, device=device)
+    pre_process = ResampleMeanCNext("cnext_bl_70", offline=offline, device=device)
 
     if osp.isfile(model_name_or_path):
         model_path = Path(model_name_or_path)

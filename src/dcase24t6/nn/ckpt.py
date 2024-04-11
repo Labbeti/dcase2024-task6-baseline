@@ -7,7 +7,7 @@ from torchoutil.utils.ckpt import ModelCheckpointRegister
 # Hash type : md5
 CNEXT_REGISTER = ModelCheckpointRegister(
     infos={
-        "cnext_bl": {
+        "cnext_bl_70": {
             "architecture": "ConvNeXt",
             "url": "https://zenodo.org/record/8020843/files/convnext_tiny_465mAP_BL_AC_70kit.pth?download=1",
             "hash": "0688ae503f5893be0b6b71cb92f8b428",
