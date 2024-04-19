@@ -4,6 +4,7 @@
 import os.path as osp
 from pathlib import Path
 
+import nltk
 import torch
 from torch import nn
 
@@ -22,6 +23,9 @@ def baseline_pipeline(
     device: str | torch.device | None = "cuda_if_available",
     verbose: int = 0,
 ) -> nn.Sequential:
+    if not offline:
+        nltk.download("stopwords")
+
     pre_process = ResampleMeanCNext(
         pre_process_name_or_path,
         offline=offline,
