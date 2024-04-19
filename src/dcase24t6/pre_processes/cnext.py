@@ -9,10 +9,15 @@ import torch
 from torch import nn
 from torchoutil.nn.functional.get import get_device
 
-from dcase24t6.nn.ckpt import CNEXT_REGISTER
+from dcase24t6.nn.ckpt import CNEXT_REGISTRY
 from dcase24t6.nn.encoders.convnext import convnext_tiny
 from dcase24t6.nn.functional import remove_index_nd
-from dcase24t6.pre_processes.common import batchify, is_audio_batch, unbatchify
+from dcase24t6.pre_processes.common import (
+    batchify,
+    is_audio_batch,
+    sanitize_batch,
+    unbatchify,
+)
 from dcase24t6.pre_processes.resample import Resample
 
 
@@ -24,11 +29,12 @@ class ResampleMeanCNext(nn.Module):
 
     def __init__(
         self,
-        model_name_or_path: str | Path = "cnext_bl",
+        model_name_or_path: str | Path = "cnext_bl_70",
         model_sr: int = 32_000,
         offline: bool = False,
         device: str | torch.device | None = "cuda_if_available",
         input_time_dim: int = -1,
+        keep_batch: bool = False,
     ) -> None:
         device = get_device(device)
 
@@ -42,7 +48,7 @@ class ResampleMeanCNext(nn.Module):
             return_frame_outputs=True,
             return_clip_outputs=True,
         )
-        state_dict = CNEXT_REGISTER.load_state_dict(
+        state_dict = CNEXT_REGISTRY.load_state_dict(
             model_name_or_path,
             device="cpu",
             offline=offline,
@@ -59,6 +65,7 @@ class ResampleMeanCNext(nn.Module):
         self.convnext = convnext
         self.resample = resample
         self.input_time_dim = input_time_dim
+        self.keep_batch = keep_batch
 
     @property
     def device(self) -> torch.device:
@@ -66,11 +73,15 @@ class ResampleMeanCNext(nn.Module):
 
     def forward(self, item_or_batch: dict[str, Any]) -> dict[str, Any]:
         if is_audio_batch(item_or_batch):
-            return self.forward_batch(item_or_batch)
+            batch = sanitize_batch(item_or_batch)
+            return self.forward_batch(batch)
+
+        item = item_or_batch
+        batch = batchify(item)
+        batch = self.forward_batch(batch)
+        if self.keep_batch:
+            return batch
         else:
-            item = item_or_batch
-            batch = batchify(item)
-            batch = self.forward_batch(batch)
             item = unbatchify(batch)
             return item
 

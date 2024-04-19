@@ -95,7 +95,7 @@ class TestCNextPreProcess(TestCase):
             )
             for duration in durations
         ]
-        pre_process = ResampleMeanCNext("cnext_bl", device=device)
+        pre_process = ResampleMeanCNext("cnext_bl_70", device=device)
 
         frame_embs_per_item = []
         frame_embs_shape_per_item = []

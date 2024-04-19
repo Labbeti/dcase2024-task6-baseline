@@ -7,7 +7,12 @@ from typing import Any
 from torch import Tensor, nn
 from torchaudio.functional import resample
 
-from dcase24t6.pre_processes.common import batchify, is_audio_batch, unbatchify
+from dcase24t6.pre_processes.common import (
+    batchify,
+    is_audio_batch,
+    sanitize_batch,
+    unbatchify,
+)
 
 
 class Resample(nn.Module):
@@ -15,18 +20,24 @@ class Resample(nn.Module):
         self,
         target_sr: int = 32_000,
         input_time_dim: int = -1,
+        keep_batch: bool = False,
     ) -> None:
         super().__init__()
         self.target_sr = target_sr
         self.input_time_dim = input_time_dim
+        self.keep_batch = keep_batch
 
     def forward(self, item_or_batch: dict[str, Any]) -> dict[str, Any]:
         if is_audio_batch(item_or_batch):
-            return self.forward_batch(item_or_batch)
+            batch = sanitize_batch(item_or_batch)
+            return self.forward_batch(batch)
+
+        item = item_or_batch
+        batch = batchify(item)
+        batch = self.forward_batch(batch)
+        if self.keep_batch:
+            return batch
         else:
-            item = item_or_batch
-            batch = batchify(item)
-            batch = self.forward_batch(batch)
             item = unbatchify(batch)
             return item
 

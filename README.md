@@ -77,8 +77,30 @@ or specify each path separtely:
 ```bash
 dcase24t6-test resume=null model.checkpoint_path=./logs/SAVE_NAME/checkpoints/MODEL.ckpt tokenizer.path=./logs/SAVE_NAME/tokenizer.json
 ```
-
 You need to replace `SAVE_NAME` by the save directory name and `MODEL` by the checkpoint filename.
+
+If you want to load and test the baseline pretrained weights, you can specify the baseline checkpoint weights:
+
+```bash
+dcase24t6-test resume=~/.cache/torch/hub/checkpoints/dcase2024-task6-baseline
+```
+
+### Inference on a file
+If you want to test the baseline model on a single file, you can use the `baseline_pipeline` function:
+
+```python
+from dcase24t6.nn.hub import baseline_pipeline
+
+sr = 44100
+audio = torch.rand(1, sr * 15)
+
+model = baseline_pipeline()
+item = {"audio": audio, "sr": sr}
+outputs = model(item)
+candidate = outputs["candidates"][0]
+
+print(candidate)
+```
 
 ## Code overview
 The source code extensively use [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) for training and [Hydra](https://hydra.cc/) for configuration.
@@ -99,7 +121,7 @@ Training follows the standard way to create a model with lightning:
 The model outperforms previous baselines with a SPIDEr-FL score of **29.6%** on the Clotho evaluation subset.
 The captioning model architecture is described in [this paper](https://arxiv.org/pdf/2309.00454.pdf) and called **CNext-trans**. The encoder part (ConvNeXt) is described in more detail in [this paper](https://arxiv.org/pdf/2306.00830.pdf).
 
-The pretrained weights of the AAC model are available on Zenodo. ([ConvNeXt encoder (BL_AC)](https://zenodo.org/records/8020843), [Transformer decoder](https://zenodo.org/records/10849427))
+The pretrained weights of the AAC model are available on Zenodo: [ConvNeXt encoder (BL_AC)](https://zenodo.org/records/8020843), [Transformer decoder](https://zenodo.org/records/10849427). Both weights are automatically downloaded during `dcase24t6-prepare`.
 
 ### Main hyperparameters
 

@@ -284,7 +284,7 @@ class AACTokenizer:
     @classmethod
     def from_file(cls, path: str | Path) -> "AACTokenizer":
         """Load tokenizer from JSON file."""
-        path = Path(path).resolve()
+        path = Path(path).resolve().expanduser()
         content = path.read_text()
         aac_tokenizer = cls.from_str(content)
         return aac_tokenizer

@@ -33,6 +33,7 @@ from torchoutil.utils.hdf import HDFDataset, pack_to_hdf
 
 from dcase24t6.callbacks.complexity import ComplexityProfiler
 from dcase24t6.callbacks.emissions import CustomEmissionTracker
+from dcase24t6.nn.ckpt import BASELINE_REGISTRY, CNEXT_REGISTRY
 from dcase24t6.utils.job import get_git_hash
 from dcase24t6.utils.saving import save_to_yaml
 
@@ -116,6 +117,10 @@ def prepare_data_metrics_models(
 
     nltk.download("stopwords")
     download_metrics(verbose=verbose)
+
+    for registry in (BASELINE_REGISTRY, CNEXT_REGISTRY):
+        for name in registry.names:
+            registry.download_file(name, force, verbose)
 
     os.makedirs(dataroot, exist_ok=True)
 

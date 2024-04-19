@@ -1,0 +1,6 @@
+# @package model
+
+_target_: "dcase24t6.models.trans_decoder.TransDecoderModel.load_from_checkpoint"
+
+checkpoint_path: ~/.cache/torch/hub/checkpoints/dcase2024-task6-baseline/checkpoints/best.ckpt
+verbose: ${verbose}
