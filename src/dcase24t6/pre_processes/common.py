@@ -36,6 +36,10 @@ def is_audio_batch(item_or_batch: dict[str, Any]) -> bool:
         )
 
 
+def sanitize_batch(batch: dict[str, Any]) -> dict[str, Any]:
+    return batch
+
+
 def batchify(item: dict[str, Any]) -> dict[str, list | Tensor]:
     """Transform a item dict to a batch dict."""
     item = add_audio_shape_to_item(item)

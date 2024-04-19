@@ -85,6 +85,23 @@ If you want to load and test the baseline pretrained weights, you can specify th
 dcase24t6-test resume=~/.cache/torch/hub/checkpoints/dcase2024-task6-baseline
 ```
 
+### Inference on a file
+If you want to test the baseline model on a single file, you can use the `baseline_pipeline` function:
+
+```python
+from dcase24t6.nn.hub import baseline_pipeline
+
+sr = 44100
+audio = torch.rand(1, sr * 15)
+
+model = baseline_pipeline()
+item = {"audio": audio, "sr": sr}
+outputs = model(item)
+candidate = outputs["candidates"][0]
+
+print(candidate)
+```
+
 ## Code overview
 The source code extensively use [PyTorch Lightning](https://lightning.ai/docs/pytorch/stable/) for training and [Hydra](https://hydra.cc/) for configuration.
 It is highly recommanded to learn about them if you want to understand this code.

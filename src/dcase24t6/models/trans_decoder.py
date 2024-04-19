@@ -285,7 +285,9 @@ class TransDecoderModel(AACModel):
         return mixed_audio, mixed_audio_shape, lbd
 
     def encode_audio(
-        self, frame_embs: Tensor, frame_embs_shape: Tensor
+        self,
+        frame_embs: Tensor,
+        frame_embs_shape: Tensor,
     ) -> AudioEncoding:
         # frame_embs: (bsize, 1, in_features, max_seq_size)
         # frame_embs_shape: (bsize, 3)
