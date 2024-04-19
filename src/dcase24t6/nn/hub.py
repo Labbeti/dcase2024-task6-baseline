@@ -7,6 +7,7 @@ from pathlib import Path
 import nltk
 import torch
 from torch import nn
+from torchoutil.nn.functional import get_device
 
 from dcase24t6.models.trans_decoder import TransDecoderModel
 from dcase24t6.nn.ckpt import BASELINE_REGISTRY
@@ -23,6 +24,8 @@ def baseline_pipeline(
     device: str | torch.device | None = "cuda_if_available",
     verbose: int = 0,
 ) -> nn.Sequential:
+    device = get_device(device)
+
     if not offline:
         nltk.download("stopwords")
 
